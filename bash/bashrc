@@ -1,0 +1,63 @@
+# ==============================================
+# ~/.bashrc
+#  executed by bash(1) for non-login shells.
+# ==============================================
+
+# If not running interactively, don't do anything
+[ -z "$PS1" ] && return
+
+# Terminal colours
+NM="\[\033[0;38m\]"
+HI="\[\033[1;32m\]"
+HII="\[\033[1;31m\]"
+SI="\[\033[1;34m\]"
+IN="\[\033[0m\]"
+
+export PS1="$NM[$HI\u$NM@$HII\h$IN:$SI\w$NM]$ $IN"
+export CLICOLOR=1
+export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
+
+# Useful aliases
+alias l="ls -lAh"
+alias ..="cd .."
+
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+
+# Emacs
+export EDITOR="emacs -nw"
+alias emacs="emacs -nw"
+alias emacsclient="emacsclient -n"
+
+# Subversion
+svndiff() {
+    svn diff "${@}" | colordiff
+}
+
+# Language
+export LANG="en_US.UTF-8"
+export LANGUAGE="en_US:en"
+export LC_MESSAGES="en_US.UTF-8"
+export LC_CTYPE="en_US.UTF-8"
+export LC_COLLATE="en_US.UTF-8"
+
+# Don't put duplicate lines in the history.
+HISTCONTROL=ignoredups:ignorespace
+
+# Make bash check its window size after a process completes                               
+shopt -s checkwinsize
+
+# Append to the history file, don't overwrite it
+shopt -s histappend
+
+# ------------------------
+# Mac OS specific settings
+# ------------------------
+if [[ "$OSTYPE" =~ ^darwin ]]; then
+    # Homebrew
+    export GIT_SSL_NO_VERIFY=1
+    export PATH=/usr/local/bin:/usr/local/sbin:$PATH
+    # Emacs
+    alias emacs="/Applications/Emacs.app/Contents/MacOS/Emacs -nw"
+fi
