@@ -1,0 +1,20 @@
+[web]
+cacerts=
+[ui]
+username = Bert Frees <bertfrees@gmail.com>
+[extensions]
+color =
+graphlog =
+hgext.extdiff =
+rebase =
+mq =
+hgext.hgshelve=
+[extdiff]
+# Emacs (Linux)
+cmd.ediff = sh
+opts.ediff = -c 'if [ -d $0 ]; then emacs -nw --eval "(ediff-directories \"$0\" \"$1\" \"\")"; else emacs -nw --eval "(ediff-files \"$0\" \"$1\")"; fi'
+# TextWrangler (Mac)
+cmd.twdiff = /Applications/TextWrangler.app/Contents/MacOS/twdiff
+opts.twdiff = --resume --wait --reverse
+# FileMerge (Mac)
+cmd.fmdiff = Applications/MacHg.app/Contents/Resources/fmdiff.sh
