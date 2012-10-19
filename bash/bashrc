@@ -1,3 +1,4 @@
+
 # ==============================================
 # ~/.bashrc
 #  executed by bash(1) for non-login shells.
@@ -13,6 +14,7 @@ HII="\[\033[1;31m\]"
 SI="\[\033[1;34m\]"
 IN="\[\033[0m\]"
 
+export TERM=xterm-256color
 export PS1="$NM[$HI\u$NM@$HII\h$IN:$SI\w$NM]$ $IN"
 export CLICOLOR=1
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
@@ -45,7 +47,7 @@ export LC_COLLATE="en_US.UTF-8"
 # Don't put duplicate lines in the history.
 HISTCONTROL=ignoredups:ignorespace
 
-# Make bash check its window size after a process completes                               
+# Make bash check its window size after a process completes
 shopt -s checkwinsize
 
 # Append to the history file, don't overwrite it
@@ -59,5 +61,16 @@ if [[ "$OSTYPE" =~ ^darwin ]]; then
     export GIT_SSL_NO_VERIFY=1
     export PATH=/usr/local/bin:/usr/local/sbin:$PATH
     # Emacs
+    export EDITOR="/Applications/Emacs.app/Contents/MacOS/Emacs -nw"
     alias emacs="/Applications/Emacs.app/Contents/MacOS/Emacs -nw"
+    # Wine
+    alias wine="/Applications/Darwine/Wine.bundle/Contents/bin/wine"
+    # MinGW
+    export PATH=/usr/local/i386-mingw32-4.3.0/bin:$PATH
+# -----------------------
+# Linux specific settings
+# -----------------------
+else
+    alias ls="ls --color=auto"
+    alias mvn="mvn3"
 fi
