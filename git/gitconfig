@@ -6,6 +6,27 @@
 [difftool]
 	prompt = false
 [difftool "twdiff"]
-	cmd = /Applications/TextWrangler.app/Contents/MacOS/twdiff \"$LOCAL\" \"$REMOTE\" --resume --wait --reverse
+	cmd = twdiff \"$LOCAL\" \"$REMOTE\" --resume --wait --reverse
+[core]
+	autocrlf = input
 [color]
 	ui = true
+	branch = auto
+	diff = auto
+	status = auto
+[color "branch"]
+	current = yellow reverse
+	local = yellow
+	remote = green
+[color "diff"]
+	meta = yellow bold
+	frag = magenta bold
+	old = red bold
+	new = green bold
+[color "status"]
+	added = yellow
+	changed = green
+	untracked = cyan
+[alias]
+	graph = log --graph --pretty=oneline --abbrev-commit
+	twdiff = difftool --tool=twdiff
