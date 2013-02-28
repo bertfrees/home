@@ -31,9 +31,9 @@ export CLICOLOR=1
 export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 
 # ------------------------------------------------------------------
-# SHELL INIT
+# COMMON SETTINGS (shared by bash & zsh)
 # ------------------------------------------------------------------
 
 BASH=$HOME/Dropbox/Settings/bash
 
-source $BASH/shell_init.sh
+source $BASH/common.sh
