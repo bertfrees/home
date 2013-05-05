@@ -34,6 +34,6 @@ export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 # COMMON SETTINGS (shared by bash & zsh)
 # ------------------------------------------------------------------
 
-BASH=$HOME/Dropbox/Settings/bash
+BASH=$HOME/.dotfiles/bash
 
 source $BASH/common.sh
