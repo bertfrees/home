@@ -1,0 +1,5 @@
+[user]
+	name = Bert Frees
+	email = bert.frees@sbs.ch
+[include]
+	path = /Users/bert/.homesick/repos/home/git/gitconfig.common

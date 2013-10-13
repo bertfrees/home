@@ -1,6 +1,3 @@
-[user]
-	name = Bert Frees
-	email = bertfrees@gmail.com
 [mergetool]
 	keepBackup = true
 [difftool]
