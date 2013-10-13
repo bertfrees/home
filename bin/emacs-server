@@ -1,0 +1,100 @@
+#!/bin/bash
+
+USAGE="Usage: emacs-server { start | stop | restart | status }"
+COMMAND=""
+FORCE=false
+
+for i in "$@"; do     
+	case $i in
+		-f|--force)
+			FORCE=true;;
+		status|start|stop|restart)
+			COMMAND=$i;;
+		*)
+			echo "$USAGE" >&2
+			exit 1;;
+	esac
+done
+
+# =======================================================
+
+PATH=$(cd $(dirname "$0") && pwd):$PATH
+
+USER=$(id | sed 's/uid=[0-9][0-9]*(\([^)]*\)).*/\1/')
+USERID=$(id -u $USER)
+if [[ "$OSTYPE" =~ ^darwin ]]; then
+    EMACS="/Applications/Emacs.app/Contents/MacOS/Emacs"
+elif [ "$(hostname)" == "woolaver" ]; then
+    EMACS="/usr/bin/emacs-snapshot-gtk"
+    TMPDIR="/tmp"
+elif [ "$(hostname)" == "travelmate" ]; then
+    EMACS="/usr/bin/emacs24"
+    TMPDIR="/tmp"
+fi
+SERVER_FILE="$TMPDIR/emacs$USERID/server"
+
+yes_or_NO() {
+	echo -n "y/[N]: "
+	while true; do
+		read -n 1 yn
+		echo ""
+		case $yn in
+			[Yy]) return 0;;
+			[Nn]) return 1;;
+			"") return 1;;
+			*) echo -n "Please answer y/[N]: ";;
+		esac
+	done
+}
+
+running() {
+	[ -e $SERVER_FILE ]
+}
+
+status() {
+	if running ; then
+		echo "Emacs server is RUNNING"
+		return 0
+	else
+		echo "Emacs server has STOPPED"
+		return 1
+	fi
+}
+
+start() {
+	if running && ! $FORCE; then
+		[ ! -t 0 ] && return 1
+		echo -n "Emacs server seems to be running already. Proceed anyway? "
+		! yes_or_NO && return 1
+	fi
+	echo "Starting Emacs server..."
+	$EMACS --daemon
+}
+
+stop() {
+	if ! running && ! $FORCE; then
+		[ ! -t 0 ] && return 1
+		echo -n "Emacs server doesn't seem to be running. Proceed anyway? "
+		! yes_or_NO && return 1
+	fi
+	echo "Shutting down Emacs server..."
+    if [ -t 0 ]; then
+		cat <<EOF | xargs -0 -I {} emacsclient -te "{}"
+(progn
+  (save-some-buffers)
+  (kill-emacs))
+EOF
+	else
+		emacsclient -ce "(let ((last-nonmenu-event nil) (window-system \"x\")) (save-some-buffers) (kill-emacs))"
+	fi
+}
+
+# =======================================================
+
+case "$COMMAND" in
+	status) status;;
+	start) start;;
+	stop) stop;;
+	restart) stop; start;;
+	*) echo "$USAGE" >&2 && exit 1;;
+esac

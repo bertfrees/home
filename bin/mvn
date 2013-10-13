@@ -1,0 +1,6 @@
+#!/bin/bash
+if [[ "$OSTYPE" =~ ^darwin ]]; then
+    /usr/bin/mvn "$@"
+else
+	mvn3 "$@"
+fi

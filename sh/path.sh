@@ -27,6 +27,9 @@ PATH=$PATH:$HOME/.gem/ruby/1.8/bin
 # Dropbox/scripts
 PATH=$HOME/Dropbox/scripts:$PATH
 
+# home/bin
+PATH=$DOTFILES/bin:$PATH
+
 export PATH
 
 # ------------------------------------------------------------------

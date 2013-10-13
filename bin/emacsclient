@@ -1,0 +1,8 @@
+#!/bin/bash
+if [[ "$OSTYPE" =~ ^darwin ]]; then
+    /Applications/Emacs.app/Contents/MacOS/bin/emacsclient "$@"
+elif [ "$(hostname)" == "woolaver" ]; then
+    /usr/bin/emacsclient.emacs-snapshot "$@"
+elif [ "$(hostname)" == "travelmate" ]; then
+    /usr/bin/emacsclient "$@"
+fi

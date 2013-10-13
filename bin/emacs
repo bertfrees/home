@@ -1,0 +1,28 @@
+#!/bin/bash
+
+yes_or_NO() {
+	echo -n "y/[N]: "
+	while true; do
+		read -n 1 yn
+		echo ""
+		case $yn in
+			[Yy]) return 0;;
+			[Nn]) return 1;;
+			"") return 1;;
+			*) echo -n "Please answer y/[N]: ";;
+		esac
+	done
+}
+
+PATH=$(cd $(dirname "$0") && pwd):$PATH
+
+EMACSCLIENT="emacsclient -t"
+
+if ! $EMACSCLIENT "$@" 2>/dev/null; then
+	if emacs-server status >/dev/null; then
+		[ ! -t 0 ] && exit 1
+		echo -n "Cannot connect to server. Did Emacs crash? "
+		! yes_or_NO && exit 1
+	fi
+	emacs-server --force start && $EMACSCLIENT "$@"
+fi
