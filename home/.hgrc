@@ -8,13 +8,16 @@ graphlog =
 hgext.extdiff =
 rebase =
 mq =
-hgext.hgshelve=
+hgshelve = /Users/bert/.homesick/repos/home/hg/extensions/hgshelve.py
+hgext.bookmarks =
+record=
+#hggit =
 [extdiff]
 # Emacs (Linux)
 cmd.ediff = sh
-opts.ediff = -c 'if [ -d $0 ]; then emacs -nw --eval "(ediff-directories \"$0\" \"$1\" \"\")"; else emacs -nw --eval "(ediff-files \"$0\" \"$1\")"; fi'
+opts.ediff = -c 'if [ -d $0 ]; then emacs --eval "(ediff-directories \"$0\" \"$1\" \"\")"; else emacs --eval "(ediff-files \"$0\" \"$1\")"; fi'
 # TextWrangler (Mac)
-cmd.twdiff = /Applications/TextWrangler.app/Contents/MacOS/twdiff
+cmd.twdiff = /usr/local/bin/twdiff
 opts.twdiff = --resume --wait --reverse
 # FileMerge (Mac)
 cmd.fmdiff = Applications/MacHg.app/Contents/Resources/fmdiff.sh
