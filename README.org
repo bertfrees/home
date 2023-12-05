@@ -1,0 +1,5 @@
+* My home directory
+
+- [[file:Makefile.org][Makefile]]: responsible for generating all the necessary files from the source code and installing
+  all the necessary software.
+- [[file:.emacs.d/init.el.org][.emacs.d]]: Emacs configuration
