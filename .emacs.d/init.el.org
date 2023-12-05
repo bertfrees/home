@@ -1,0 +1,329 @@
+* Emacs configuration
+** Miscellaneous
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(setq initial-scratch-message nil
+      inhibit-startup-screen t
+      ring-bell-function 'ignore)
+(fset 'yes-or-no-p 'y-or-n-p)
+(global-set-key (kbd "C-x i") 'insert-char)
+
+(use-package popwin
+  :ensure t
+  :config (popwin-mode 1))
+
+(use-package undo-tree
+  :hook (prog-mode text-mode)
+  :init
+  (require 'popwin)
+  (push '(" *undo-tree*" :width 0.2 :position right) popwin:special-display-config)
+  :bind (:map undo-tree-map
+         ("C-z" . undo-tree-undo))
+  :config (setq undo-tree-auto-save-history nil))
+
+(global-unset-key (kbd "C-z"))
+
+#+END_SRC
+
+** Package manager
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(require 'package)
+(add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
+(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+(package-initialize)
+(when (not package-archive-contents) ;; to avoid long startup time
+                                     ;; to manually update the list, run M-x list-packages and update with U
+  (package-refresh-contents))
+
+(package-install 'use-package)
+(require 'use-package)
+(setq use-package-always-defer t
+      use-package-always-ensure nil
+      use-package-verbose t)
+
+#+END_SRC
+
+** Modifier keys
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(when (eq system-type 'darwin)
+  (progn
+    (setq mac-function-modifier      'none
+          mac-control-modifier       'control
+          mac-command-modifier       'control
+          mac-option-modifier        'meta
+          mac-right-command-modifier 'super
+          mac-right-control-modifier 'none
+          mac-right-option-modifier  'none)))
+
+#+END_SRC
+
+** Git
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package password-store
+  :ensure t
+  :autoload password-store-get)
+
+(use-package magit
+  :ensure t
+  :commands magit-status
+  :config
+  ;; get rsa passphrase from pass
+  (defadvice magit-process-password-prompt (around magit-process-rsa-password-prompt (proc string) activate)
+    (if (or (string= string "Enter passphrase for key '/home/frees/.ssh/gmail_rsa': ")
+            (string= string "Enter passphrase for key '/Users/bert/.ssh/gmail_rsa': "))
+        (progn
+          (process-send-string proc (concat (password-store-get "ssh-rsa/bertfrees@gmail.com") "\n")))
+      ad-do-it)))
+
+#+END_SRC
+
+** Org-mode
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package org
+  :ensure t
+  :commands (org-mode org-agenda org-capture org-store-link)
+  :bind (("C-c a" . org-agenda)
+         ("C-c c" . org-capture)
+         ("C-c l" . org-store-link))
+  :config
+  (set-face-attribute 'org-document-title nil ':height 1.00)
+  (set-face-attribute 'org-drawer nil ':foreground "grey")
+  (set-face-attribute 'org-meta-line nil ':foreground "grey")
+  (setq org-directory "~/Dropbox/org"
+        org-default-notes-file (expand-file-name "todo.org" org-directory)
+        org-agenda-files
+          `(,org-default-notes-file
+            ,(expand-file-name "~/Dropbox/org/roam/agenda.org")
+            ,(expand-file-name "~/Dropbox/org/roam/liblouis_work.org")
+            ,(expand-file-name "~/Dropbox/org/roam/zaak/work_for_daisy_consortium.org")
+            ,(expand-file-name "~/Dropbox/org/roam/zaak/work_for_sbs.org")
+            ,(expand-file-name "~/Dropbox/org/roam/zaak/work_for_dedicon.org")
+            ,(expand-file-name "~/Dropbox/org/roam/zaak/work_for_braille_autoriteit.org")
+            ,(expand-file-name "~/Dropbox/org/roam/zaak/work_for_luisterpuntbibliotheek.org")
+            ,(expand-file-name "~/Dropbox/org/roam/zaak/work_for_transkript.org")
+            ,(expand-file-name "~/Dropbox/org/roam/betaalagenda.org")
+            ,(expand-file-name "~/Dropbox/org/roam/vuilophaling.org")
+            ,(expand-file-name "~/Dropbox/org/roam/kamerplanten.org")
+            ,(expand-file-name "~/Dropbox/org/roam/zaak/boekhouding.org")
+            ,(expand-file-name "~/Dropbox/org/roam/veilingen.org")
+            )
+        org-startup-folded 'content
+        org-drawers '("PROPERTIES" "LOGBOOK")
+        ;; don't use hard indentation
+        org-adapt-indentation nil
+        org-src-preserve-indentation t
+        org-edit-src-content-indentation 0
+        ;; soft indentation can be controlled with https://orgmode.org/manual/Org-Indent-Mode.html
+        org-startup-indented t
+        org-todo-keywords
+          '((sequence "TODO(t)" "NEXT(n)" "DOING(d)" "|" "DONE(v)")
+            (sequence "WAITING(w)" "HOLD(h)" "|" "CANCELLED(c)" "MISSED(m)"))
+        org-fontify-done-headline nil
+        org-todo-keyword-faces
+          '(("TODO" :foreground "red" :weight bold)
+            ("NEXT" :foreground "orange" :weight bold)
+            ("DOING" :foreground "dodger blue" :weight bold)
+            ("DONE" :foreground "lime green" :strike-through t :weight bold)
+            ("WAITING" :foreground "red" :weight bold)
+            ("HOLD" :foreground "red" :weight bold)
+            ("CANCELLED" :foreground "purple" :strike-through t :weight bold)
+            ("MISSED" :foreground "purple" :strike-through t :weight bold))
+        org-hidden-keywords '(title)
+        org-clock-history-length 25
+        org-clock-in-switch-to-state 'org-clock-in-switch-to-doing
+        org-clock-into-drawer t
+        org-clock-out-remove-zero-time-clocks t
+        org-clock-out-when-done t
+        org-clock-auto-clock-resolution 'when-no-clock-is-running
+        org-clock-persist t
+        org-clock-report-include-clocking-task t
+        org-time-stamp-rounding-minutes '(1 1)
+        org-duration-format 'h:mm
+        org-agenda-dim-blocked-tasks nil
+        org-agenda-compact-blocks t
+        org-agenda-span 'week
+        org-agenda-log-mode-items '(closed state)
+        org-agenda-clockreport-parameter-plist '(:link t :maxlevel 2)
+        org-agenda-clock-consistency-checks
+          '(:max-duration "10:00"
+            :min-duration 0
+            :max-gap "0:15"
+            :gap-ok-around ("12:30" "13:00" "17:30" "18:00" "4:00")
+            :default-face ((:background "orange") (:foreground "black"))
+            :overlap-face ((:background "red") (:foreground "white"))
+            :gap-face nil
+            :no-end-time-face nil
+            :long-face nil
+            :short-face nil)
+        org-agenda-window-setup 'current-window
+        org-agenda-tags-column -120
+        org-agenda-custom-commands
+          '((" " "Agenda"
+             ((agenda "" ((org-agenda-span 'day)
+                          (org-agenda-prefix-format " %i %?-12t% s")
+                          (org-agenda-remove-tags t)))
+              nil))))
+  (defun org-clock-in-switch-to-doing (kw)
+    (when (not (and (boundp 'org-capture-mode) org-capture-mode))
+      (when (member (org-get-todo-state) '("TODO" "NEXT"))
+        "DOING")))
+  (add-hook 'org-mode-hook (lambda () (setq fill-column 100)))
+  (defun org-timestamp-at-point-as-utc-time ()
+    (interactive)
+    (when (org-at-timestamp-p 'lax)
+      (message "%s"
+               (format-time-string "%H:%M UTC"
+                                   (org-time-string-to-time
+                                    (apply 'buffer-substring
+                                           (flatten-tree (org-in-regexp org-ts-regexp3))))
+                                   t))))
+  (use-package org-indent
+    :config
+    (set-face-attribute 'org-indent nil ':background "#e0f4ff")))
+
+(use-package emacsql-sqlite-builtin
+  :ensure t)
+
+(use-package org-roam
+  :ensure t
+  :defer 300
+  :after emacsql-sqlite-builtin ;; see https://org-roam.discourse.group/t/org-roam-fails-with-selecting-deleted-buffer-error/3353/9
+  :commands (org-roam-capture
+             org-roam-buffer-toggle)
+  :autoload (org-roam-node-find
+             org-roam-node-insert)
+  :bind (("C-c n f" . org-roam-node-find-with-ivy)
+         ("C-c n i" . org-roam-node-insert-with-ivy)
+         ("C-c n c" . org-roam-capture)
+         ("C-c n l" . org-roam-buffer-toggle))
+  :config
+  (setq org-roam-v2-ack t
+        org-roam-directory "~/Dropbox/org/roam"
+        org-roam-node-display-template "${title:*} ${tags:0} ${refs:0}"
+        org-roam-capture-templates
+        '(("d" "default" plain
+           "%?"
+           :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+FILETAGS:\n#+TITLE: ${title}\n")
+           :unnarrowed t)))
+  (org-roam-db-autosync-enable))
+
+(defun org-roam-node-find-with-ivy ()
+  (interactive)
+  (unwind-protect
+      (progn
+        (ivy-mode +1)
+        (org-roam-node-find))
+    (ivy-mode -1)))
+(defun org-roam-node-insert-with-ivy ()
+  (interactive)
+  (unwind-protect
+      (progn
+        (ivy-mode +1)
+        (org-roam-node-insert))
+    (ivy-mode -1)))
+
+(global-set-key (kbd "C-c n f") 'org-roam-node-find-with-ivy)
+(global-set-key (kbd "C-c n i") 'org-roam-node-insert-with-ivy)
+(global-set-key (kbd "C-c n c") 'org-roam-capture)
+(global-set-key (kbd "C-c n l") 'org-roam-buffer-toggle)
+
+#+END_SRC
+
+** Selection, completion, navigation
+*** Auto-complete
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package auto-complete
+  :ensure t
+  :commands auto-complete-mode
+  :config
+  (setq-default ac-sources '())
+  (setq ac-auto-start nil
+        ac-dwim t
+        ac-ignore-case t
+        ac-menu-height 10
+        ac-quick-help-prefer-pos-tip t
+        ac-use-quick-help t
+        ac-quick-help-height 20
+        ac-quick-help-delay 1
+        ac-use-comphist nil)
+  (ac-set-trigger-key "TAB"))
+
+#+END_SRC
+
+*** Ido
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package ido
+  :config
+  (setq ido-enable-prefix nil
+        ido-enable-flex-matching t
+        ido-create-new-buffer 'always
+        ido-use-filename-at-point 'guess
+        ido-max-prospects 10
+        ido-default-file-method 'selected-window
+        ido-everywhere t)
+  :bind
+  ("M-x" . (lambda ()
+             (interactive)
+             (call-interactively
+              (intern
+               (ido-completing-read
+                "M-x "
+                (all-completions "" obarray 'commandp)
+                'commandp t nil 'extended-command-history
+                (car extended-command-history)))))))
+
+(ido-mode t)
+
+#+END_SRC
+
+*** Ivy
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package ivy
+  :ensure t
+  :autoload ivy-mode)
+
+#+END_SRC
+
+** Cut & paste
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(defun interprogram-killring-peek ()
+  (shell-command-to-string "/usr/bin/pbpaste"))
+
+(defun interprogram-killring-push (text &optional push)
+  (let ((process-connection-type nil))
+    (let ((proc (start-process "killring push" "*Messages*" "/usr/bin/pbcopy")))
+  (process-send-string proc text)
+  (process-send-eof proc))))
+
+(setq save-interprogram-paste-before-kill t
+  interprogram-cut-function 'interprogram-killring-push
+  interprogram-paste-function 'interprogram-killring-peek)
+
+#+END_SRC
+
+** Putting it all together
+
+#+NAME: init.el
+#+BEGIN_SRC emacs-lisp :tangle init.el
+;; This file is automatically generated from init.el.org. Don't make
+;; changes to this file directly.
+
+<<config>>
+#+END_SRC
