@@ -1,0 +1,80 @@
+default namespace = "http://www.daisy.org/ns/xprocspec"
+namespace a = "http://relaxng.org/ns/compatibility/annotations/1.0"
+namespace inherit = inherit
+
+include "xprocspec.run.rnc" inherit = inherit {
+  description =
+    
+    ## after evaluation, the results from all the assertions are appended to the description element
+    element description {
+      description.common,
+      attribute test-base-uri { text },
+      attribute test-grammar { text },
+      ((attribute temp-dir { text },
+        step-declaration,
+        scenario,
+        output*,
+        # if an error occurs during step execution, then it is stored here
+        errors?)
+       | (attribute temp-dir { text }?,
+          step-declaration?,
+          pending-scenario)),
+      scenario-results
+    }
+}
+scenario-results =
+  [
+    a:documentation [
+      xml:space = "preserve"
+      "\x{a}" ~
+      "                    The x:test-result element represents the results from one specific assertion.\x{a}" ~
+      '                    The result from the evaluation is contained in the boolean "result" attribute.\x{a}' ~
+      '                    The type of assertion is given by the "test-type" attribute.\x{a}' ~
+      "                    "
+      # If the assertion is an XPath test, then the XPath expression is given in the "test" attribute.
+      
+      "\x{a}" ~
+      "                    The expected content and the actual content are contained in the x:expected and x:was elements respectively.\x{a}" ~
+      "                "
+    ]
+  ]
+  element test-result {
+    common-attributes,
+    common-elements,
+    label,
+    pending-attribute?,
+    attribute contextref {
+      text
+      # <data type="IDREF"/>
+      
+    },
+    ((# XPath assertion
+      attribute type { "xpath" },
+      attribute test { text },
+      attribute equals { text }?)
+     | (# Document comparison
+        attribute type { "compare" },
+        attribute normalize-space { xsd:boolean })
+     | (# Document count
+        attribute type { "count" },
+        (attribute min { xsd:integer }
+         | attribute max { xsd:integer }
+         | (attribute min { xsd:integer },
+            attribute max { xsd:integer })))
+     | (# Document validation
+        attribute type { "validate" },
+        attribute grammar { "relax-ng" | "schematron" | "xml-schema" })
+     | (# Error assertions
+        attribute type { "error" },
+        ((attribute code { text },
+          attribute message { text }?)
+         | (attribute code { text }?,
+            attribute message { text })))
+     | (# Custom assertion
+        attribute type { "custom" },
+        attribute href { xsd:anyURI },
+        attribute step { xsd:QName })),
+    attribute result { "passed" | "failed" | "skipped" },
+    element expected { any-attribute, any-content }?,
+    element was { any-attribute, any-content }?
+  }*

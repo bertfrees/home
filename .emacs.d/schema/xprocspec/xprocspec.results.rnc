@@ -1,0 +1,10 @@
+default namespace = "http://www.daisy.org/ns/xprocspec"
+namespace a = "http://relaxng.org/ns/compatibility/annotations/1.0"
+namespace inherit = inherit
+
+include "xprocspec.evaluate.rnc" inherit = inherit {
+  start =
+    
+    ## The x:test-report wraps all the scenario descriptions (and their results) as a single XML document.
+    element test-report { (description | errors)* }
+}

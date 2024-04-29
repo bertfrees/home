@@ -1,0 +1,7 @@
+default namespace x = "http://www.daisy.org/ns/xprocspec"
+
+include "xprocspec/xprocspec.rnc"
+
+script |=
+   element script {
+      external "xproc.rnc" }

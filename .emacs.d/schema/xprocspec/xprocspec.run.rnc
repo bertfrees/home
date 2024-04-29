@@ -1,0 +1,96 @@
+default namespace = "http://www.daisy.org/ns/xprocspec"
+namespace a = "http://relaxng.org/ns/compatibility/annotations/1.0"
+namespace inherit = inherit
+namespace ns1 = "http://www.w3.org/ns/xproc-step"
+namespace ns2 = "http://www.w3.org/ns/xproc"
+
+include "xprocspec.preprocess.rnc" inherit = inherit {
+  description =
+    
+    ## after execution, the outputs from the XProc step is appended as output elements to the description element
+    element description {
+      description.common,
+      attribute test-base-uri { text },
+      attribute test-grammar { text },
+      ((attribute temp-dir { text },
+        step-declaration,
+        scenario,
+        output*,
+        # if an error occurs during step execution, then it is stored here
+        errors?)
+       | (attribute temp-dir { text }?,
+          step-declaration?,
+          pending-scenario))
+    }
+  scenario =
+    
+    ## after execution, the scenario will contain the start-time and end-time attributes
+    element scenario {
+      scenario.common,
+      scenario.common-children,
+      attribute start-time { xsd:dateTime },
+      attribute end-time { xsd:dateTime }
+    }
+  pending-scenario-attribute =
+    element scenario {
+      pending-attribute,
+      scenario.common?,
+      (scenario.common-children | call)?,
+      (attribute start-time { xsd:dateTime },
+       attribute end-time { xsd:dateTime })?
+    }
+  xproc.param-set =
+    
+    ## after execution, the set of parameters are inferred and provided as a c:param-set inside a p:inline on the parameter input port in the
+    ##                     step-declaration
+    element ns2:inline {
+      any-attribute,
+      element ns1:param-set {
+        element ns1:param {
+          attribute name { xsd:QName },
+          attribute value { xsd:QName },
+          attribute namespace { xsd:anyURI }?
+        }*
+      }
+    }
+  option =
+    element option {
+      attribute value { text },
+      common-attributes,
+      common-elements,
+      attribute name { xsd:QName },
+      attribute select { text },
+      attribute base-uri { "temp-dir" }?
+    }
+  param =
+    element param {
+      attribute value { text },
+      common-attributes,
+      common-elements,
+      attribute name { xsd:QName },
+      attribute select { text },
+      attribute port { xsd:QName }?,
+      attribute base-uri { "temp-dir" }?
+    }
+}
+output =
+  [
+    a:documentation [
+      xml:space = "preserve"
+      "\x{a}" ~
+      "                Each x:document element contained by the x:output element represents a document appearing on the\x{a}" ~
+      '                output port represented by this x:output element. The name of the output port is gived by the "port" attribute.\x{a}' ~
+      "            "
+    ]
+  ]
+  element output {
+    attribute port { text },
+    
+    ## A document appearing on the output port. The xml:base attribute contains the base URI of the document.
+    element document {
+      attribute xml:base { text },
+      attribute xml:space { text }?,
+      attribute type { "inline" },
+      any-element
+    }*
+  }

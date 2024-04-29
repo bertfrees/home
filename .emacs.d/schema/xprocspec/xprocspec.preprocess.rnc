@@ -1,0 +1,173 @@
+namespace a = "http://relaxng.org/ns/compatibility/annotations/1.0"
+namespace inherit = inherit
+namespace local = ""
+namespace ns1 = "http://www.w3.org/ns/xproc-step"
+default namespace ns2 = "http://www.w3.org/ns/xproc"
+namespace ns3 = "http://www.daisy.org/ns/xprocspec"
+
+include "xprocspec.rnc" inherit = inherit {
+  start = description | errors
+  description =
+    
+    ## after preprocessing, each description (that is not pending) has a new step-declaration element, no imports and only one scenario
+    element ns3:description {
+      description.common,
+      attribute test-base-uri { text },
+      attribute test-grammar { text },
+      ((step-declaration, scenario)
+       | (step-declaration?, pending-scenario))
+    }
+  description.common =
+    common-attributes,
+    common-elements,
+    
+    ## The `script` attribute is a URI that points to the XProc script you want to test.
+    attribute script { xsd:anyURI },
+    
+    ## The `version` attribute can be used to aid development over time.
+    attribute version { xsd:NMTOKEN }?,
+    pending-attribute?
+  pending-scenario = pending-scenario-attribute
+  scenario.common-children = call, (context, expect+)+
+  context.attributes =
+    common-attributes,
+    common-elements,
+    pending-attribute?,
+    label,
+    attribute id {
+      text
+      # <data type="ID"/>
+      
+    }
+  expect.attributes =
+    common-attributes,
+    common-elements,
+    pending-attribute?,
+    label,
+    attribute contextref {
+      text
+      # <data type="IDREF"/>
+      
+    }
+  call =
+    element ns3:call {
+      call.common,
+      attribute step { xsd:QName },
+      attribute ns3:type { text }
+    }
+  
+  ## after preprocessing, the pending attribute must have a non-empty value
+  pending-attribute =
+    attribute pending {
+      xsd:string { pattern = ".+" }
+    }
+}
+errors =
+  
+  ## if an error occurs an XProc error document will be returned, allowing graceful error reporting
+  element ns1:errors {
+    (common-attributes
+     | attribute xml:base { text })*,
+    common-elements,
+    attribute error-location { text },
+    attribute test-base-uri { text },
+    attribute test-grammar { text }?,
+    element ns1:error {
+      common-attributes,
+      common-elements,
+      attribute name { xsd:NCName }?,
+      attribute type { xsd:QName }?,
+      attribute code { xsd:QName }?,
+      attribute href { xsd:anyURI }?,
+      attribute line { xsd:integer }?,
+      attribute column { xsd:integer }?,
+      attribute offset { xsd:integer }?,
+      any-content
+    }*
+  }
+
+## an XProc step declaration
+step-declaration =
+  element ns3:step-declaration {
+    element declare-step { xproc.declare-step }
+    | element pipeline { xproc.declare-step }
+  }
+# XProc elements (used for step signatures inside the x:step-declaration element):
+xproc.declare-step.common =
+  attribute name { xsd:NCName }?,
+  attribute type { xsd:QName }?,
+  attribute ns3:type {
+    xsd:string { pattern = "\{.*\}.*" }
+  },
+  attribute psvi-required { xsd:boolean }?,
+  attribute xpath-version { xsd:string }?,
+  attribute exclude-inline-prefixes { text }?,
+  attribute version { xsd:string }?,
+  common-attributes,
+  common-elements
+[
+  a:documentation [
+    xml:space = "preserve"
+    "\x{a}" ~
+    "             An XProc step declaration/signature\x{a}" ~
+    "        "
+  ]
+]
+xproc.declare-step =
+  xproc.declare-step.common,
+  (xproc.input | xproc.output | xproc.option)*
+xproc.option.common =
+  attribute name { xsd:NCName },
+  ((attribute required { "false" }?,
+    attribute select { text })?
+   | attribute required { xsd:boolean }?),
+  attribute * - (name | required | select | value) { text }*,
+  xproc.common
+xproc.option = element option { xproc.option.common }
+xproc.input =
+  element input {
+    xproc.ports-common,
+    attribute select { text }?,
+    ((attribute kind { "document" },
+      (element empty { any-attribute }
+       | xproc.document-inline-data*)?)
+     | (attribute kind { "parameter" },
+        xproc.param-set?))
+  }
+xproc.output =
+  element output {
+    xproc.ports-common,
+    attribute kind { "document" },
+    (element empty { any-attribute }
+     | (element pipe {
+          attribute step { xsd:NCName },
+          attribute port { xsd:NCName },
+          attribute * - (step | port) { text }*
+        }
+        | xproc.document-inline-data)*)
+  }
+xproc.ports-common =
+  attribute port { xsd:NCName },
+  attribute sequence { xsd:boolean },
+  attribute primary { xsd:boolean },
+  xproc.common,
+  common-attributes,
+  common-elements
+xproc.document-inline-data =
+  element document {
+    attribute href { xsd:anyURI },
+    (attribute * - href { text }
+     | attribute * - (local:* | ns3:* | ns1:* | ns2:*) { text })*
+  }
+  | element inline { any-attribute, any-content }
+  | element data {
+      attribute href { xsd:anyURI },
+      (attribute * - href { text }
+       | attribute * - (local:* | ns3:* | ns1:* | ns2:*) { text })*
+    }
+xproc.param-set =
+  element empty { any-attribute }
+  | xproc.document-inline-data*
+xproc.common =
+  (element documentation { any-attribute, any-element* }
+   | element pipeinfo { any-attribute, any-element* })*

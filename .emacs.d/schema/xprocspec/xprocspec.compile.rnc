@@ -1,0 +1,11 @@
+default namespace = "http://www.w3.org/ns/xproc"
+namespace a = "http://relaxng.org/ns/compatibility/annotations/1.0"
+namespace inherit = inherit
+
+include "xprocspec.preprocess.rnc" inherit = inherit {
+  start = xproc-step | errors
+}
+xproc-step =
+  
+  ## the xproc step declaration
+  element declare-step { any-attribute, any-content }
