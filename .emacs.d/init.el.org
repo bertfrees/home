@@ -5,9 +5,26 @@
 #+BEGIN_SRC emacs-lisp
 (setq initial-scratch-message nil
       inhibit-startup-screen t
-      ring-bell-function 'ignore)
+      ring-bell-function 'ignore
+      make-backup-files nil
+      auto-save-default nil
+      vs-follow-symlinks t
+      line-move-visual nil
+      mouse-wheel-scroll-amount '(1 ((shift) . 1))
+      mouse-wheel-follow-mouse 't)
 (fset 'yes-or-no-p 'y-or-n-p)
 (global-set-key (kbd "C-x i") 'insert-char)
+(global-auto-revert-mode t)
+(electric-pair-mode t)
+
+(use-package dired
+  :bind (:map dired-mode-map
+         (("RET" . dired-find-alternate-file)
+          ("^"   . (lambda ()
+                     (interactive)
+                     (find-alternate-file "..")))))
+  :config
+  (put 'dired-find-alternate-file 'disabled nil))
 
 (use-package popwin
   :ensure t
@@ -73,7 +90,30 @@
 (use-package magit
   :ensure t
   :commands magit-status
+  :custom
+  (magit-highlight-whitespace)
+  (magit-diff-refine-hunk t)
+  (magit-diff-use-overlays t)
+  (magit-status-expand-stashes nil)
+  (magit-repository-directories '(("/Users/bert/src" . 1)
+                                  ("/Users/bert/src/github" . 2)))
   :config
+  (setq magit-display-buffer-function 'magit-display-buffer-same-window-except-diff-v1)
+  (add-hook 'magit-section-set-visibility-hook
+            (lambda (section)
+              (and (not magit-insert-section--oldroot)
+                   (let ((type (with-slots (type) section type)))
+                     (or (eq type 'untracked)
+                         (eq type 'remote)
+                         (eq type 'tag)))
+                   'hide)))
+  (defun magit-use-ivy-to-read-repository (orig-fun &rest args)
+    (unwind-protect
+        (progn
+          (ivy-mode +1)
+          (apply orig-fun args))
+      (ivy-mode -1)))
+  (advice-add 'magit-read-repository :around #'magit-use-ivy-to-read-repository)
   ;; get rsa passphrase from pass
   (defadvice magit-process-password-prompt (around magit-process-rsa-password-prompt (proc string) activate)
     (if (or (string= string "Enter passphrase for key '/home/frees/.ssh/gmail_rsa': ")
@@ -115,8 +155,11 @@
             ,(expand-file-name "~/Dropbox/org/roam/kamerplanten.org")
             ,(expand-file-name "~/Dropbox/org/roam/zaak/boekhouding.org")
             ,(expand-file-name "~/Dropbox/org/roam/veilingen.org")
+            ,(expand-file-name "~/Dropbox/org/pipeline/todo.org")
+            ,(expand-file-name "~/Dropbox/org/sbs/todo.org")
             )
         org-startup-folded 'content
+        org-cycle-include-plain-lists 'integrate
         org-drawers '("PROPERTIES" "LOGBOOK")
         ;; don't use hard indentation
         org-adapt-indentation nil
@@ -275,15 +318,17 @@
         ido-default-file-method 'selected-window
         ido-everywhere t)
   :bind
-  ("M-x" . (lambda ()
-             (interactive)
-             (call-interactively
-              (intern
-               (ido-completing-read
-                "M-x "
-                (all-completions "" obarray 'commandp)
-                'commandp t nil 'extended-command-history
-                (car extended-command-history)))))))
+  (("M-x" . (lambda ()
+              (interactive)
+              (call-interactively
+               (intern
+                (ido-completing-read
+                 "M-x "
+                 (all-completions "" obarray 'commandp)
+                 'commandp t nil 'extended-command-history
+                 (car extended-command-history))))))
+   ;; in addition to the default C-x b, because I often type C-x C-b by accident
+   ("C-x C-b" . 'ido-switch-buffer)))
 
 (ido-mode t)
 
