@@ -235,7 +235,14 @@ $(BREW) :
 
 #+END_SRC
 
-** Other recipes
+** Essential packages
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+.PHONY : essential
+essential : emacs zsh git pass karabiner
+
+#+END_SRC
 
 *** Emacs
 
@@ -394,19 +401,6 @@ Dropbox/.apdisk : | $(DROPBOX) $(ENCFS)
 
 #+END_SRC
 
-*** Docker
-
-#+NAME: Makefile-recipes
-#+BEGIN_SRC makefile
-DOCKER := $(BREW_HOME)/bin/docker
-.PHONY : docker
-docker : $(DOCKER)
-$(DOCKER) :
-	(require '[lib :refer [install]])                     \
-	(install {:type :brew :cask true :formula "docker"})
-
-#+END_SRC
-
 *** Karabiner-Elements
 
 See [[file:.config/karabiner/karabiner.json.org][Karabiner-Elements configuration]]
@@ -439,6 +433,7 @@ $(ITERM2) :
 
 #+END_SRC
 
+** Other recipes
 *** Amethyst
 
 #+NAME: Makefile-recipes
@@ -451,6 +446,20 @@ $(AMETHYST) :
 	(install {:type :brew :cask true :formula "amethyst"})
 
 #+END_SRC
+
+*** Docker
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+DOCKER := $(BREW_HOME)/bin/docker
+.PHONY : docker
+docker : $(DOCKER)
+$(DOCKER) :
+	(require '[lib :refer [install]])                     \
+	(install {:type :brew :cask true :formula "docker"})
+
+#+END_SRC
+
 
 ** Putting it all together
 
