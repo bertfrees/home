@@ -3,7 +3,9 @@
 /._dropbox/
 /.bash_history
 /.bashrc
+/.cache/tooling/gradle/
 /.config/iterm2/
+/.config/git/gitk
 /.config/karabiner/automatic_backups/
 /.config/karabiner/karabiner.json
 /.docker/
@@ -23,7 +25,16 @@
 /.gnupg/public-keys.d/
 /.gnupg/secring.gpg
 /.gnupg/trustdb.gpg
+/.gradle/.tmp
+/.gradle/caches
+/.gradle/daemon
+/.gradle/jdks
+/.gradle/native
+/.gradle/notifications
+/.gradle/workers
+/.gradle/wrapper
 /.local/share/karabiner/
+/.m2/
 /.make/bb.edn
 /.make/lib.clj
 /.make/babashka-1.3.186-macos-amd64.tar.gz
@@ -38,6 +49,7 @@
 /bin/bb
 /bin/emacs
 /bin/make
+/bin/with-java
 /bin/worgle
 /Desktop/
 /Documents/

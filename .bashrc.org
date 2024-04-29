@@ -24,4 +24,8 @@ PATH=$HOME/bin:$PATH
 export PASSWORD_STORE_DIR=$HOME/src/github/bertfrees/password-store
 
 export HOMEBREW_NO_INSTALL_CLEANUP=TRUE
+
+if [ -z "$JAVA_HOME" ]; then
+    export JAVA_HOME=$BREW_HOME/opt/openjdk@17
+fi
 #+END_SRC

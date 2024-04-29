@@ -100,15 +100,18 @@ installs the ~bb~ executable to ~bin/~ if it is not present before executing it.
                  (binding [*out* *err*]
                    (println "Failed to update Homebrew"))
                  (System/exit 1))
-               (when-not (and (or (not (:tap recipe))
-                                  (= 0 (:exit (sh {:out :inherit :err :inherit} brew "tap" (:tap recipe)))))
-                              (= 0 (:exit (apply sh {:out :inherit :err :inherit}
-                                                 (remove nil? [brew "install"
-                                                                    (when (:cask recipe) "--cask")
-                                                                    (:formula recipe)])))))
-                 (binding [*out* *err*]
-                   (println "Failed to install" (:formula recipe)))
-                 (System/exit 1)))
+               (let [{tap :tap formula :formula} recipe
+                     tap (if (and tap (not (.contains tap "/"))) (str "homebrew/" tap) tap)
+                     formula (if tap (str tap "/" formula) formula)]
+                 (when-not (and (or (not tap)
+                                    (= 0 (:exit (sh {:out :inherit :err :inherit} brew "tap" tap))))
+                                (= 0 (:exit (apply sh {:out :inherit :err :inherit}
+                                                   (flatten [brew "install"
+                                                             (if (:cask recipe) "--cask" [])
+                                                             formula])))))
+                   (binding [*out* *err*]
+                     (println "Failed to install" formula))
+                   (System/exit 1))))
     (do
       (binding [*out* *err*]
         (println "Can not read recipe:" recipe))
@@ -296,6 +299,13 @@ git : | ssh
 	  (if (= current-url initial-url)                                   \
 	    (exec "git" "remote" "set-url" "origin" ssh-url initial-url)))
 
+GITK := $(BREW_HOME)/bin/gitk
+.PHONY : gitk
+gitk : $(GITK)
+$(GITK) :
+	(require '[lib :refer [install]])           \
+	(install {:type :brew :formula "git-gui"})
+
 #+END_SRC
 
 *** SSH
@@ -460,6 +470,97 @@ $(DOCKER) :
 
 #+END_SRC
 
+*** Java development
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+.PHONY : java-dev
+java-dev: java-17 java-11 java-8 mvn ant eclipse bin/with-java
+
+OPENJDK17 := $(BREW_HOME)/opt/openjdk@17/bin/java
+.PHONY : java java-17 openjdk openjdk-17
+java java-17 openjdk openjdk-17 : $(OPENJDK17)
+$(OPENJDK17) :
+	(require '[lib :refer [install]])             \
+	(install {:type :brew :formula "openjdk@17"})
+
+OPENJDK11 := $(BREW_HOME)/opt/openjdk@11/bin/java
+.PHONY : java-11 openjdk-11
+java java-11 openjdk openjdk-11 : $(OPENJDK11)
+$(OPENJDK11) :
+	(require '[lib :refer [install]])             \
+	(install {:type :brew :formula "openjdk@11"})
+
+OPENJDK8 := /Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home/bin/java
+.PHONY : java-8 openjdk-8
+java-8 openjdk-8 : $(OPENJDK8)
+$(OPENJDK8) :
+	(require '[lib :refer [install]])                    \
+	(install {:type :brew :cask true :formula "zulu@8"})
+
+WORGLE_FILES += bin/with-java
+
+#+END_SRC
+
+**** Maven
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+MVN := $(BREW_HOME)/bin/mvn
+.PHONY : mvn
+mvn : $(MVN) .m2/settings.xml
+$(MVN) :
+	(require '[lib :refer [install]])        \
+	(install {:type :brew :formula "maven"})
+
+.m2/settings.xml : % : Dropbox/config/%
+	(require '[babashka.process :refer [sh]]                              \
+	         '[babashka.fs :as fs])                                       \
+	(fs/create-dirs "$(dir $@)")                                          \
+	(System/exit (:exit (sh {:dir "$(dir $@)"} "ln -s $(CURDIR)/$< .")))
+
+Dropbox/config/.m2/settings.xml : | Dropbox/.apdisk
+
+#+END_SRC
+
+**** Ant
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+ANT := $(BREW_HOME)/bin/ant
+.PHONY : ant
+ant : $(ANT)
+$(ANT) :
+	(require '[lib :refer [install]])      \
+	(install {:type :brew :formula "ant"})
+
+#+END_SRC
+
+**** Eclipse
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+ECLIPSE := $(BREW_HOME)/Caskroom/eclipse-java
+.PHONY : eclipse
+eclipse : $(ECLIPSE)
+$(ECLIPSE) :
+	(require '[lib :refer [install]])                           \
+	(install {:type :brew :cask true :formula "eclipse-java"})
+
+#+END_SRC
+
+*** C development
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+.PHONY : c-dev
+c-dev:
+	(require '[lib :refer [install]])            \
+	(install {:type :brew :formula ["autoconf"   \
+	                                "automake"   \
+	                                "libtool"]})
+
+#+END_SRC
 
 ** Putting it all together
 
