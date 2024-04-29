@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<locatingRules xmlns="http://thaiopensource.com/ns/locating-rules/1.0">
+
+	<!-- XProc -->
+	<uri pattern="*.xpl" typeId="XProc"/>
+	<namespace ns="http://www.w3.org/ns/xproc" typeId="XProc"/>
+	<documentElement prefix="p" localName="declare-step" typeId="XProc"/>
+	<documentElement prefix="p" localName="pipeline" typeId="XProc"/>
+	<documentElement prefix="p" localName="library" typeId="XProc"/>
+	<typeId id="XProc" uri="xproc.rnc"/>
+
+	<!-- XProcSpec -->
+	<uri pattern="*.xprocspec" typeId="XProcSpec"/>
+	<namespace ns="http://www.daisy.org/ns/pipeline/xproc/test" typeId="XProcSpec"/>
+	<documentElement prefix="x" localName="description" typeId="XProcSpec"/>
+	<typeId id="XProcSpec" uri="xprocspec.rnc"/>
+
+</locatingRules>
