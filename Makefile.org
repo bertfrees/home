@@ -336,7 +336,7 @@ Dropbox/config/.ssh/config Dropbox/config/.ssh/gmail_rsa Dropbox/config/.ssh/gma
 #+BEGIN_SRC makefile
 GPG := $(BREW_HOME)/bin/gpg
 .PHONY : gnupg gpg
-gnupg gpg : $(GPG) .gnupg/secring.gpg
+gnupg gpg : $(GPG) .gnupg/secring.gpg .gnupg/gpg-agent.conf
 $(GPG) :
 	(require '[lib :refer [install]])        \
 	(install {:type :brew :formula "gnupg"})
@@ -348,6 +348,15 @@ $(GPG) :
 	(exec "cp $< $@")
 
 Dropbox/config/.gnupg/secring.gpg : | Dropbox/.apdisk
+
+.gnupg/gpg-agent.conf : bin/pinentry
+
+WORGLE_FILES += bin/pinentry
+$(BREW_HOME)/bin/pinentry-mac :
+	(require '[babashka.process :refer [exec]]       \
+	         '[lib :refer [install]])                \
+	(install {:type :brew :formula "pinentry-mac"})  \
+	(exec "gpgconf" "--kill" "gpg-agent")
 
 #+END_SRC
 
