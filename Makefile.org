@@ -453,6 +453,76 @@ $(ITERM2) :
 #+END_SRC
 
 ** Other recipes
+*** OfflineIMAP
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+.PHONY : offlineimap
+offlineimap : bin/offlineimap
+OFFLINEIMAP := $(BREW_HOME)/bin/offlineimap
+$(OFFLINEIMAP) :
+	(require '[lib :refer [install]])               \
+	(install {:type :brew :formula "offlineimap"})
+bin/offlineimap .offlineimaprc .offlineimap/postsync .offlineimap/postindex : bin/offlineimap.org
+	(require '[babashka.process :refer [sh]]                                 \
+	         '[babashka.fs :as fs]                                           \
+	         '[lib :refer [chmod]])                                          \
+	(fs/create-dirs "$(dir $@)")                                             \
+	(let [worgle (.getAbsolutePath (io/file "bin/worgle"))]                  \
+	  (when-not (= 0 (:exit (sh {:dir "$(dir $<)"} worgle "$(notdir $<)")))  \
+	    (System/exit 1)))                                                    \
+	(chmod "755" "bin/offlineimap")                                          \
+	(chmod "755" ".offlineimap/postsync")                                    \
+	(chmod "755" ".offlineimap/postindex")
+.netrc : .authinfo.gpg | gpg
+	(require '[babashka.process :refer [sh]]                                 \
+	         '[babashka.fs :as fs]                                           \
+	         '[clojure.string :as str]                                       \
+	         '[clojure.java.io :as io]                                       \
+	         '[lib :refer [chmod]])                                          \
+	(fs/delete-if-exists "$@")                                               \
+	(when-not (= 0 (:exit (sh {:out :inherit                                 \
+	                           :err :inherit}                                \
+	                          "$(GPG)" "--output" "$@" "--decrypt" "$<")))   \
+	                (System/exit 1))                                         \
+	;; remove machines with "port" because offlineimap chokes on them        \
+	(let [netrc (io/file "$@")                                               \
+	      modified-netrc (str/join "\n"                                      \
+	                               (with-open [reader (io/reader netrc)]     \
+	                                 (doall (map #(if (.contains % "port")   \
+	                                                (str "# " %)             \
+	                                                 %)                      \
+	                                             (line-seq reader)))))]      \
+	  (with-open [writer (io/writer netrc)]                                  \
+	    (.write writer (str modified-netrc "\n"))))                          \
+	(chmod "600" "$@")
+
+#+END_SRC
+
+*** Mu
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+MU := $(BREW_HOME)/bin/mu
+.PHONY : mu
+mu : $(MU) .cache/mu/xapian/iamglass
+$(MU) :
+	(require '[lib :refer [install]])      \
+	(install {:type :brew :formula "mu"})
+.cache/mu/xapian/iamglass :
+	(require '[babashka.process :refer [exec]])                        \
+	(exec "mu" "init" "--maildir=$(CURDIR)/Mail"                       \
+	                  "--my-address=bertfrees@gmail.com"               \
+	                  "--my-address=bert@sonuwe.com"                   \
+	                  "--my-address=bertfrees@hotmail.com"             \
+	                  "--my-address=bfrees@daisy.org"                  \
+	                  "--my-address=bert.frees@sbs.ch"                 \
+	                  "--my-address=bert.frees@esat.kuleuven.be"       \
+	                  "--my-address=bertfrees@openoffice.org"          \
+	                  "--my-address=bertfrees@users.sourceforge.net")
+
+#+END_SRC
+
 *** Amethyst
 
 #+NAME: Makefile-recipes
