@@ -432,6 +432,34 @@ $(ITERM2) :
 #+END_SRC
 
 ** Other recipes
+*** OfflineIMAP
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+.PHONY : offlineimap
+offlineimap : bin/offlineimap
+OFFLINEIMAP := $(BREW_HOME)/bin/offlineimap
+$(OFFLINEIMAP) :
+	(require '[lib :refer [install]])               \
+	(install {:type :brew :formula "offlineimap"})
+bin/offlineimap .offlineimaprc : bin/offlineimap.org
+	(require '[babashka.process :refer [sh]]                                 \
+	         '[babashka.fs :as fs])                                          \
+	(fs/create-dirs "$(dir $@)")                                             \
+	(let [worgle (.getAbsolutePath (io/file "bin/worgle"))]                  \
+	  (System/exit (:exit (sh {:dir "$(dir $<)"} worgle "$(notdir $<)"))))
+
+.netrc : .authinfo.gpg | gpg
+	(require '[babashka.process :refer [sh]]                                \
+	         '[lib :refer [chmod]])                                         \
+	(when-not (= 0 (:exit (sh {:out :inherit                                \
+	                           :err :inherit}                               \
+	                          "$(GPG)" "--output" "$@" "--decrypt" "$<")))  \
+	                (System/exit 1))                                        \
+	(chmod "600" "$@")
+
+#+END_SRC
+
 *** Amethyst
 
 #+NAME: Makefile-recipes
