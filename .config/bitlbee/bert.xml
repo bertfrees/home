@@ -1,0 +1,16 @@
+<user password="h3XfQWLLQSuiS9ODTxUl+4RAEbFc" nick="bert" version="1">
+	<setting name="last_version">198144</setting>
+	<account protocol="slack" handle="U064KJ0HK%daisy-dev.slack.com" password="69z9Z7SSsAxOzO/lHlp7Pdxf" autoconnect="true" tag="slack">
+		<setting name="display_name">bert</setting>
+	</account>
+	<channel name="&amp;bitlbee" type="control">
+		<setting name="auto_join">true</setting>
+	</channel>
+	<channel name="#pipeline2_" type="chat">
+		<setting name="account">slack</setting>
+		<setting name="auto_join">true</setting>
+		<setting name="chat_type">room</setting>
+		<setting name="purple_name">#pipeline2</setting>
+		<setting name="room">#pipeline2</setting>
+	</channel>
+</user>

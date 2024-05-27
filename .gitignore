@@ -4,6 +4,7 @@
 /.bash_history
 /.bashrc
 /.cache/tooling/gradle/
+/.config/bitlbee/purple/
 /.config/iterm2/
 /.config/git/gitk
 /.config/karabiner/automatic_backups/
@@ -57,6 +58,7 @@
 /.zsh_sessions/
 /.zshrc
 /bin/bb
+/bin/bitlbee
 /bin/emacs
 /bin/make
 /bin/offlineimap

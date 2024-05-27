@@ -412,6 +412,44 @@ save it in `ffap-file-at-point-line-number' variable."
 
 #+END_SRC
 
+** IRC and Slack
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package erc-terminal-notifier
+  :ensure t
+  )
+
+(use-package erc
+  :commands (libera-chat bitlbee erc-all)
+  :config
+  (require 'erc-services)
+  (require 'erc-terminal-notifier)
+  (setq erc-server "localhost"
+        erc-server-history-list '("localhost"
+                                  "irc.libera.chat")
+        erc-nick '("bert" "bfrees")
+        erc-nickserv-identify-mode 'both
+        erc-autojoin-channels-alist
+          '(("Libera.Chat" "#liblouis")
+            ;"BitlBee" ... ;; autojoins for BitlBee are handled by BitlBee itself
+            ))
+  (defun libera-chat ()
+    (interactive)
+    (erc-tls :server "irc.libera.chat" :port 6697 :nick "bfrees"))
+  (defun bitlbee ()
+    (interactive)
+    (when (not (get-buffer-process "*bitlbee*"))
+      (start-process "bitlbee" "*bitlbee*"
+                     (expand-file-name "../bin/bitlbee" user-emacs-directory) "-Fn"))
+    (erc :server "localhost" :port 6667 :nick "bert"))
+  (defun erc-all ()
+    (interactive)
+    (libera-chat)
+    (bitlbee)))
+
+#+END_SRC
+
 ** Programming
 *** XML
 
