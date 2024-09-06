@@ -12,6 +12,7 @@
       line-move-visual nil
       mouse-wheel-scroll-amount '(1 ((shift) . 1))
       mouse-wheel-follow-mouse 't)
+(xterm-mouse-mode 1)
 (fset 'yes-or-no-p 'y-or-n-p)
 (global-set-key (kbd "C-x i") 'insert-char)
 (global-auto-revert-mode t)
@@ -60,6 +61,18 @@
 (setq use-package-always-defer t
       use-package-always-ensure nil
       use-package-verbose t)
+
+#+END_SRC
+
+** Theme
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+;; choose a theme to prevent Emacs from inheriting the background
+;; and foreground of the terminal when in tty mode
+(load-theme 'leuven)
+
+(require-theme 'modus-themes)
 
 #+END_SRC
 
@@ -628,6 +641,105 @@ save it in `ffap-file-at-point-line-number' variable."
   :autoload auto-complete-nxml-init-project
   :config
   (remove-hook 'nxml-mode-hook 'auto-complete-nxml-setup))
+
+** Shell
+
+See also [[file:../.zshrc.org][.zshrc]]
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(defun vterm-buffer-for-directory (&optional directory)
+  (let* ((directory (or directory default-directory))
+         (directory (expand-file-name directory))
+         (buf (if current-prefix-arg
+                  nil ;; create new buffer if current-prefix-arg is set
+                (progn
+                  (require 'cl-lib)
+                  (cl-loop for b in (match-buffers '(major-mode . vterm-mode))
+                           when (string= directory (expand-file-name
+                                                    (buffer-local-value 'default-directory b)))
+                           return b))))
+         (buf (or buf
+                  (let ((default-directory directory))
+                    (vterm)))))
+    (with-current-buffer buf
+      (vterm-dark-theme)) ;; Note that vterm-dark-theme is already applied in vterm-mode-hook,
+                          ;; but vterm-mode-hook does not seem te be executed when vterm is
+                          ;; started through initial-buffer-choice. Also, for some reason,
+                          ;; vterm-dark-theme is not applied correctly to the very first vterm
+                          ;; buffer (when the daemon is started), so call it again when
+                          ;; emacsclient connects (and every time vterm-buffer-for-directory is
+                          ;; called).
+    buf))
+
+(defun switch-to-vterm-buffer-for-directory (&optional directory)
+  (interactive)
+  (switch-to-buffer (vterm-buffer-for-directory directory)))
+
+(setq initial-buffer-choice #'vterm-buffer-for-directory)
+
+;;     C-x !: switch to vterm buffer for current directory
+;; C-u C-x !: create new vterm buffer for current directory
+(global-set-key (kbd "C-x !") 'switch-to-vterm-buffer-for-directory)
+
+(use-package vterm
+  :ensure t
+  :autoload vterm--internal
+  :bind (:map vterm-mode-map
+         ("C-c C-p" . vterm-copy-mode)
+         :map vterm-copy-mode-map
+         ("C-c C-p" . vterm-copy-mode-done))
+  :config
+  (setq vterm-buffer-name-string "vterm %s")
+  (defun vterm-dark-theme ()
+    "Dark theme for vterm buffers."
+    (ignore-errors
+      (unless (color-dark-p (mapcar (lambda (c) (/ c 65535.0))
+                                    (color-values (background-color-at-point))))
+        (require 'theme-anchor)
+        (theme-anchor-buffer-local 'modus-vivendi))))
+  (add-hook 'vterm-mode-hook #'vterm-dark-theme)
+  (defvar vterm-execute-buffer nil)
+  (defun vterm-execute-region-or-current-line ()
+    "Insert text of current line in vterm and execute."
+    (interactive)
+    (require 'vterm)
+    (eval-when-compile (require 'subr-x))
+    (let ((command (if (region-active-p)
+                       (string-trim (buffer-substring
+                                     (save-excursion (region-beginning))
+                                     (save-excursion (region-end))))
+                     (string-trim (buffer-substring (save-excursion
+                                                      (beginning-of-line)
+                                                      (point))
+                                                    (save-excursion
+                                                      (end-of-line)
+                                                      (point)))))))
+      (let* ((buf (current-buffer))
+             (vterm-buffer
+              (or (and (buffer-live-p vterm-execute-buffer) vterm-execute-buffer)
+                  (if-let ((vterm-buffers (match-buffers '(major-mode . vterm-mode))))
+                      (if (= 1 (length vterm-buffers))
+                          (car vterm-buffers)
+                        (set (make-local-variable 'vterm-execute-buffer)
+                             (get-buffer
+                              (completing-read "Send command to shell: "
+                                               (mapcar #'buffer-name vterm-buffers)
+                                               nil t))))
+                    (let ((default-directory (read-directory-name
+                                              "Send command to new shell in directory: "
+                                              default-directory nil t)))
+                      (vterm))))))
+        (display-buffer vterm-buffer t)
+        (switch-to-buffer-other-window vterm-buffer)
+        (vterm--goto-line -1)
+        (message command)
+        (vterm-send-string command)
+        (vterm-send-return)
+        (switch-to-buffer-other-window buf))))
+  (use-package sh-script
+    :bind (:map sh-mode-map
+                (("C-x C-e" . vterm-execute-region-or-current-line)))))
 
 #+END_SRC
 
