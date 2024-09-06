@@ -13,8 +13,30 @@
 (let [bitlbee (io/file "/usr/local/sbin/bitlbee")]
   (let [home-dir (.getParentFile (.getParentFile (io/file *file*)))]
     (when (not (= 0 (:exit (sh {:dir home-dir :out :inherit :err :inherit}
+                               ;; FIXME: why not include this with "make bitblee"?
+                               ;; so that bitblee can be installed lazily by emacs?
                                "bin/make" (.getPath bitlbee)))))
       (System/exit 1))
     (apply exec bitlbee "-d" (.getAbsolutePath (io/file home-dir ".config/bitlbee")) ,*command-line-args*)))
 #+END_SRC
 
+Configuration:
+
+- [X] connect with slack
+  - run ~plugins~ in &bitlbee channel: should list slack
+  - run ~account add slack bertfrees@gmail.com%daisy-dev.slack.com DCrLOJS4jR~
+    - ~account 0 on~ to login (happens automatically on ~identify~)
+    - if this doesn't work: ~account add slack U064KJ0HK%daisy-dev.slack.com DCrLOJS4jR~
+      - see https://github.com/dylex/slack-libpurple?tab=readme-ov-file#authentication
+  - test with ~/query slackbot~
+  - ~chat add slack #pipeline2~
+  - ~/join #pipeline2~
+  - ~channel pipeline2 set auto_join true~
+- [-] connect with facebook (does not work!)
+  - https://wiki.bitlbee.org/HowtoFacebookMQTT
+  - ~plugin~ in @bitlbee should list facebook
+  - account add facebook bertfrees@hotmail.com 4Xz0jhK2pr
+  - (account facebook set token <token from Python script above>)
+    - only if 2FA is activated, but does not seem to be the case
+  - account facebook on
+- [X] ~register <password>~

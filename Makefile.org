@@ -338,10 +338,12 @@ Dropbox/config/.ssh/config Dropbox/config/.ssh/gmail_rsa Dropbox/config/.ssh/gma
 #+BEGIN_SRC makefile
 GPG := $(BREW_HOME)/bin/gpg
 .PHONY : gnupg gpg
-gnupg gpg : $(GPG) .gnupg/secring.gpg .gnupg/gpg-agent.conf
+gnupg gpg : $(GPG) .gnupg/secring.gpg .gnupg/gpg-agent.conf bin/gpg2
 $(GPG) :
 	(require '[lib :refer [install]])        \
 	(install {:type :brew :formula "gnupg"})
+
+# FIXME: trust key after having copied it: https://stackoverflow.com/a/34132924
 
 .gnupg/secring.gpg : % : Dropbox/config/%
 	(require '[babashka.process :refer [exec]]  \
@@ -359,6 +361,10 @@ $(BREW_HOME)/bin/pinentry-mac :
 	         '[lib :refer [install]])                \
 	(install {:type :brew :formula "pinentry-mac"})  \
 	(exec "gpgconf" "--kill" "gpg-agent")
+
+bin/gpg2 : | $(GPG)
+	(require '[babashka.process :refer [exec]])  \
+	(exec "ln" "-s" "$(GPG)" "$@")
 
 #+END_SRC
 
@@ -525,6 +531,68 @@ $(MU) :
 
 #+END_SRC
 
+*** Bitlbee
+
+see also [[file:bin/bitlbee.org][bin/bitlbee]]
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+.PHONY : bitlbee
+bitlbee : bin/bitlbee
+WORGLE_FILES += bin/bitlbee
+BITLBEE := /usr/local/sbin/bitlbee
+$(BITLBEE) :
+	;; brew install bitlbee (/opt/homebrew/sbin/bitlbee, for dependencies) \
+	;; brew install pidgin (/opt/homebrew/bin/pidgin)                      \
+	(require '[lib :refer [git-checkout]])                          \
+	(git-checkout {:url "https://github.com/bitlbee/bitlbee.git"    \
+	               :target "src/github/bitlbee/bitlbee"})           \
+	;; cd src/github/bitlbee/bitlbee                                \
+	;; ./configure --purple=1                                       \
+	;; make                                                         \
+	;; sudo make install (to /usr/local/sbin/bitlbee)               \
+	;; sudo make install-dev                                        \
+	(git-checkout {:url "https://github.com/dylex/slack-libpurple"  \
+	               :target "src/github/dylex/slack-libpurple"})     \
+	;; cd src/slack-libpurple                                       \
+	;; make                                                         \
+	;; sudo make install (to /opt/homebrew/Cellar/pidgin/2.14.13/lib/purple-2) \
+  ;; \
+  ;; git clone https://github.com/bitlbee/bitlbee-facebook.git \
+  ;; cd bitlbee-facebook                                       \
+  ;; export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/          \
+  ;; => this is needed in order to link to bitlbee installed in /usr/local, not the one in /opt/homebrew \
+  ;; => but Version is /usr/local/lib/pkgconfig/bitlbee.pc empty!      \
+  ;;    -> also empty in source code                                   \
+  ;;    -> adjust manually to "3.6" (see BITLBEE_VERSION in bitlbee.h) \
+  ;; brew install json-glib                      \
+  ;; ./autogen.sh                                \
+  ;; ./configure                                 \
+  ;; make                                        \
+  ;; make install (to /usr/local/lib/bitlbee)    \
+  ;;                                             \
+  ;;                                             \
+  ;;                                             \
+
+
+#+END_SRC
+
+*** Github CLI
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+GH := $(BREW_HOME)/bin/gh
+.PHONY : gh
+gh : $(GH) .config/gh/config.yml
+$(GH) :
+	(require '[lib :refer [install]])      \
+	(install {:type :brew :formula "gh"})
+.config/gh/config.yml : | .ssh/gmail_rsa.pub
+	(require '[babashka.process :refer [exec]])  \
+  (exec "gh" "auth" "login")
+
+#+END_SRC
+
 *** Amethyst
 
 #+NAME: Makefile-recipes
@@ -629,6 +697,11 @@ $(ECLIPSE) :
 	(install {:type :brew :cask true :formula "eclipse-java"})
 
 #+END_SRC
+
+*** JavaScript development
+
+- curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+- nvm install node
 
 *** C development
 

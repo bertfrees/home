@@ -1,22 +1,30 @@
 * Emacs configuration
 ** Miscellaneous
 
+- [ ] protect scratch buffer from accidental killing if not empty
+  - ask confirmation
+  - https://www.emacswiki.org/emacs/protbuf-by-name.el
+
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
 (setq initial-scratch-message nil
+      initial-major-mode 'fundamental-mode
       inhibit-startup-screen t
       ring-bell-function 'ignore
       make-backup-files nil
       auto-save-default nil
-      vs-follow-symlinks t
+      vs-follow-symlinks t ;; FIXME: this does not work for find-function: always get confirmation prompt
       line-move-visual nil
       mouse-wheel-scroll-amount '(1 ((shift) . 1))
       mouse-wheel-follow-mouse 't)
+(tool-bar-mode 0)
 (xterm-mouse-mode 1)
 (fset 'yes-or-no-p 'y-or-n-p)
-(global-set-key (kbd "C-x i") 'insert-char)
 (global-auto-revert-mode t)
 (electric-pair-mode t)
+
+(global-set-key (kbd "C-x i") 'insert-char)
+;;(global-set-key (kbd "C-x k") 'kill-this-buffer) ;; FIXME: usually I don't want to choose the buffer (kill-buffer), but sometimes I do
 
 (use-package dired
   :bind (:map dired-mode-map
@@ -42,13 +50,100 @@
 
 (global-unset-key (kbd "C-z"))
 
+(setq-default bidi-paragraph-direction 'left-to-right)
+
 #+END_SRC
 
 ** Package manager
 
+- [-] try straight
+  - https://github.com/radian-software/straight.el
+  - [[https://github.com/radian-software/straight.el][comparable to el-get]] (built from source, reproducible)
+    - but only git support
+    - hopefully less buggy
+    - hopefully with possibility to easily uninstall packages
+  - [[https://github.com/radian-software/straight.el][editing packages locally is trivial]]
+    - just edit source files
+    - can commit to fork of package
+    - could even commit to https://github.com/bertfrees/home?
+      - is it possible to have a local repo only (without a reference to a git repo in the recipe)?
+- [-] issue with using both package.el and straight is that a package may be installed by both
+  (because it is a dependency of another package)
+  - note that package adds all packages to the load-path during initialize, straight only does it
+    when use-package is called
+    - this means uninstallation of an elpa package is needed to completely remove it
+  - how does straight resolve dependencies?
+    - dependencies taken from Package-Requires in header of main package file
+    - from dependency names, recipes are looked up in recipe repositories
+      - straight-recipe-repositories = '(org-elpa melpa gnu-elpa-mirror nongnu-elpa el-get emacsmirror-mirror)
+      - unless you have specified a recipe for the dependency
+  - hack: add packages to straight-built-in-pseudo-packages and package--builtin-versions
+    - https://www.reddit.com/r/emacs/comments/s6c1ga/straight_how_not_to_load_packagerequires/
+    - https://emacs.stackexchange.com/questions/24290/how-to-install-package-without-install-dependencies-through-package
+    - issues with this approach
+      - uninstalling an elpa package is not possible without removing all its dependent packages
+        first
+      - because we're tricking the package managers into believing that certain packages are
+        built-in, care must be taken to install packages in the right order
+      - dependencies of the exclusions of a package manager must be installed explicitly with that
+        package manager, and must be defined as exclusions for the other package manager: becomes a
+        real pain
+        - installing dependencies could be done within the :init of the use-package?
+        - adding exclusions to straight-built-in-pseudo-packages also
+        - but adding exclusions to package--builtin-versions must be done before package-initialize!
+  - easier to switch to 100% straight
+
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
+;; straight.el
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir)
+            user-emacs-directory)))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+
+;; make package.el and straight.el play nicer together
+;; keep track of which packages need to be installed by which package manager
+
+;; => automatically add certain packages to package--builtin-versions
+;;    -> could be done with a macro or function that also does straight-register-package
 (require 'package)
+(add-to-list 'package--builtin-versions '(forge 0 3 2))
+
+;; => automatically add dependencies of the package straight-built-in-pseudo-packages
+;;    -> unless a dependency is already in package--builtin-versions
+;;    -> could be done with a macro or function that also does package-install
+;;       - (unless (package-installed-p x) (package-install x))
+;;       - possibly lazily before straight installs the dependent package
+;;    -> list of dependencies could be determined automatically from Require-Packages
+(add-to-list 'straight-built-in-pseudo-packages 'let-alist)
+(add-to-list 'straight-built-in-pseudo-packages 'compat)
+(add-to-list 'straight-built-in-pseudo-packages 'closql)
+(add-to-list 'straight-built-in-pseudo-packages 'dash)
+(add-to-list 'straight-built-in-pseudo-packages 'emacsql)
+(add-to-list 'straight-built-in-pseudo-packages 'ghub)
+(add-to-list 'straight-built-in-pseudo-packages 'magit)
+(add-to-list 'straight-built-in-pseudo-packages 'markdown-mode)
+(add-to-list 'straight-built-in-pseudo-packages 'seq)
+(add-to-list 'straight-built-in-pseudo-packages 'transient)
+(add-to-list 'straight-built-in-pseudo-packages 'yaml)
+
+;(unless (package-installed-p 'compat) (package-install 'compat))
+;...
+
+(setq straight-host-usernames '((github . "bertfrees")))
+
+;; package.el
 (add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (package-initialize)
@@ -56,6 +151,7 @@
                                      ;; to manually update the list, run M-x list-packages and update with U
   (package-refresh-contents))
 
+;; use-package
 (package-install 'use-package)
 (require 'use-package)
 (setq use-package-always-defer t
@@ -73,6 +169,17 @@
 (load-theme 'leuven)
 
 (require-theme 'modus-themes)
+;(load-theme 'modus-vivendi)
+;(load-theme 'modus-operandi)
+
+(use-package auto-dark
+  :ensure t
+  :config
+  (setq auto-dark-dark-theme 'modus-vivendi
+        auto-dark-light-theme 'leuven ; nil to disable theme
+        auto-dark-polling-interval-seconds 60
+        auto-dark-allow-osascript t))
+;(auto-dark-mode t)
 
 #+END_SRC
 
@@ -122,6 +229,106 @@
 
 ** Git
 
+- [-] try magit-forge
+  - https://github.com/magit/forge
+  - https://magit.vc/manual/forge/
+  - [X] setup
+    - set Github user name
+      - git config --global github.user bertfrees
+    - create token
+      - https://magit.vc/manual/forge/Token-Creation.html
+      - https://magit.vc/manual/ghub/Creating-a-Token.html
+      - go to https://github.com/settings/tokens
+      - generate new token (classic)
+      - note: forge
+      - no expiration
+      - scopes
+        - repo (grants full read/write access to private and public repositories)
+        - user (grants access to profile information)
+        - read:org (grants read-only access to organization membership)
+    - store token
+      - https://magit.vc/manual/ghub/Storing-a-Token.html
+      - add to ~/.authinfo.gpg
+        - machine api.github.com login bertfrees^forge password ...
+      - also add to ~/src/github/bertfrees/password-store/github-tokens/forge.pgp (pass edit github-tokens/forge)
+    - initial pull ~(forge-pull)~ or ~f n~
+  - [X] how to ~forge-add-repository~ and afterwards pull topics in a way that they still contain
+    all the correct metadata (labels, milestones, assignees, etc.)?
+    - workaround is to reset database for the repository with ~M-x forge-remove-repository~
+      - could this be done automatically on first forge-pull?
+      - really problematic because after a forge-remove-repository the repository can sometimes not
+        be added anymore, and only workaround is deleting the database file (which is in theory not
+        a problem, if syncing wasn"t an issue, and if you didn't have to fetch all notifications
+        for each individual repository)
+    - seems to have been fixed in latest version
+  - [ ] issue: metadata (labels etc.) missing from topics from repositories that haven't been pulled
+    yet
+    - when repo cloned and all topics fetched afterwards, metadata is still missing from the single
+      topic that was viewed
+    - moreover, a lot of issues missing!
+    - workaround is to reset database for the repository with ~M-x forge-remove-repository~
+      - could this be done automatically on first forge-pull?
+    - [ ] better solution : detect whether repository has been cloned: if not, ask to first clone it
+      automatically and fetch topics
+      - can we improve a forge function?
+      - or do it in consult-gh-forge--issue-view?
+  - [ ] completion for mentions in forge-post buffer
+- [ ] try gh-notify
+  - https://github.com/anticomputer/gh-notify
+- [X] try consult-gh
+  - requires github cli: ~make -C ~ gh~
+  - https://github.com/armindarvish/consult-gh
+  - https://www.youtube.com/watch?v=DbRmd75Ywt8
+- [ ] try git-link
+  - https://github.com/sshaw/git-link
+- [ ] git-gutter
+- [X] org-mode links to source code
+  - [X] https://github.com/magit/orgit
+  - [ ] compare with my own implementation
+    - orgit doesn't seem to support links to files within a revision
+  - [ ] if i move to orgit, i should add some wrapper code to handle magit: links using orgit
+- [-] open Github issue links from mu4e, org-mode and forge topic buffers with forge
+  - by getting repo and issue number and passing it to consult-gh-forge--issue-view
+    - e.g. ~(consult-gh-forge--issue-view "daisy/pipeline-ui" "220")~
+  - [X] mu4e: mu4e--view-browse-url-from-binding
+  - [X] forge: markdown-follow-link-at-point
+  - [X] org-mode: org-open-at-point
+    - note that some org-mode files also have custom "gh:" links: turn these into regular links
+      again
+      - how does my old emacs handle these?
+    - [X] also tried https://github.com/magit/orgit-forge
+      - problem: orgit-forge stores id from forge database in link, and can not open link if topic has
+        not been pulled already
+        - ~(forge-topic-setup-buffer (forge-get-topic id))~
+        - the id doesn't seem to be something that comes from github
+        - if database is cleared, and topics pulled again, the same topic has the same id, but this
+          doesn't mean the id can be used to find the topic
+        - where does forge store its (meta)data?
+          - ~/.emacs.d/forge-database.sqlite
+          - there is also .git/refs/pullreqs in the individual projects
+  - [X] issue: can not show topic if not pulled yet: first pull notifications
+  - [ ] issue: can not show topic if repository not pulled?
+    - opening topic from notifications list in forge itself does work
+  - [ ] issue: can not see commits of a pr because "not inside a git repository"
+    - solution: detect whether project has already been cloned, and first cd to that directory and
+      pull
+    - also: after replying to a topic, can not automatically pull from repo
+  - [ ] support going to specific comment
+- [-] flag email as read/done/saved if notification is flagged as read/done/saved in forge?
+  - [-] more feasible solution: function to move all github emails corresponsing to "done"
+    notifications to trash
+    - trigger function when "Github notifications" bookmark is called
+    - start using forge to browse notifications
+    - don't show github notifications in inbox
+    - label with "github-notifications-trash" label instead of directly moving to trash
+- [ ] find a way to view/manage github projects in emacs?
+  - https://github.com/magit/ghub/issues/107
+  - ghi can view projects
+  - consult-gh can't
+- [ ] find a way to do code reviews in emacs
+  - https://github.com/wandersoncferreira/code-review
+  - https://github.com/charignon/github-review
+
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
 (use-package password-store
@@ -133,12 +340,17 @@
   :commands magit-status
   :custom
   (magit-highlight-whitespace)
-  (magit-diff-refine-hunk t)
+  (magit-diff-refine-hunk t) ;; FIXME: does not work?
   (magit-diff-use-overlays t)
   (magit-status-expand-stashes nil)
   (magit-repository-directories '(("/Users/bert/src" . 1)
-                                  ("/Users/bert/src/github" . 2)))
+                                  ("/Users/bert/src/github" . 2)
+                                  ("/Users/bert/.emacs.d/straight/repos" . 1)))
   :config
+  (custom-set-faces
+   '(diff-refine-added ((t (:background "#66dd55"))))
+   '(diff-refine-removed ((t (:background "#ff8877")))))
+  (require 'forge)
   (setq magit-display-buffer-function 'magit-display-buffer-same-window-except-diff-v1)
   (add-hook 'magit-section-set-visibility-hook
             (lambda (section)
@@ -163,9 +375,150 @@
           (process-send-string proc (concat (password-store-get "ssh-rsa/bertfrees@gmail.com") "\n")))
       ad-do-it)))
 
+;; FIXME: synchronization with Github is not good
+;; -> https://github.com/magit/forge/issues/367
+;; -> see forge-notifications-github-kludge
+;; => in latest version (now using d3b14f2) too many notifications are marked done
+;;    - see commit 93d3f2a: "When first pulling notifications, mark none as pending"
+;;    - better than too many notifications because i still have the email backup
+;;    - solution could be to mark all pending as unread
+;;      - but also means i should read all done? or is this automatic?
+;; => other solution is to simply never look at notifications on Github
+;;    - but what if forge database is reset?
+;; FIXME: add ability to mark several notifications before executing all the marks
+(use-package forge
+  ;; FIXME: need to use older version (3908514) of forge to make it compatible with consult-gh-forge
+  ;; -> see https://github.com/armindarvish/consult-gh/issues/102
+  ;; -> update when consult-gh is updated?
+  ;; => for now disabled because of issues with older version of forge
+  ;; FIXME: can not checkout specific version with straight
+  ;; -> checked out desired version after the clone
+  ;; -> then do a M-x straight-freeze-versions
+  ;;    - this will create the lockfile ~/.emacs.d/straight/versions/default.el
+  :straight (forge :type git :host github :repo "magit/forge")
+  :bind (("C-c g h n" . forge-list-notifications))
+  :autoload (browse-github-issue-url-with-forge)
+  :config
+  (custom-set-faces
+   '(forge-notification-pending ((t nil))))
+  (transient-append-suffix 'forge-notifications-menu '(0)
+    [:hide always
+     ("<up>"     magit-previous-line)
+     ("<down>"   magit-next-line)])
+  (transient-append-suffix 'forge-topics-menu '(0)
+    [:hide always
+     ("<up>"     magit-previous-line)
+     ("<down>"   magit-next-line)])
+  (defun browse-github-issue-url-with-forge (url)
+    (when (string-match
+           "^https?://github.com/\\([^/]+/[^/]+\\)/\\(pull\\|issues\\)/\\([0-9]+\\)\\(#\\(issuecomment\\|event\\)-.+\\)?$"
+           url)
+      (let ((repo (match-string 1 url))
+            (issue (match-string 3 url)))
+        ;; no need to pull notifications if we already just did it
+        ;; (see mu4e-sync-github-notifications-before-search)
+        (unless (and (boundp 'mu4e--search-last-query)
+                     (string= mu4e--search-last-query mu4e-github-notifications-query))
+          (require 'forge)
+          (forge-pull-notifications)) ;; FIXME: check if this is synchronous
+        (require 'consult-gh-forge)
+        (consult-gh-forge--issue-view repo issue)
+        t)))
+  (use-package markdown-mode
+    :bind
+    (("C-c C-o" . markdown-follow-link-at-point))
+    :config
+    (defun markdown-browse-github-issue-url-with-forge (orig-fun &rest args)
+      (if current-prefix-arg
+          (apply orig-fun args)
+        (let ((url (car args)))
+          (or (browse-github-issue-url-with-forge url)
+              (apply orig-fun args)))))
+    (advice-add 'markdown--browse-url :around #'markdown-browse-github-issue-url-with-forge)
+    ))
+
+(use-package orgit :ensure t)
+;(use-package orgit-forge :ensure t) ;; FIXME: error: Required package ‘forge-0.3’ is unavailable
+
+;; FIXME: transient menu (M-x consult-gh) seems slow
+;; FIXME: source code modified because not compatible with latest forge
+;; -> wait until consult-gh is fixed upstream?
+;; -> write own alternative for consult-gh-forge--issue-view?
+;;    - consult-gh's implementation seems not straightforward
+;; -> can i do with forge some of the things that you can do with ghi (like filtering issues)?
+;;    - see https://github.com/magit/forge/issues/140
+;; -> for now commented out line with forge--zap-repository-cache
+;;    - works, but warning message "Obsolete value for ‘forge-get-repository’s DEMAND: ‘full’; use ‘:tracked?’ instead"
+;;    - should commit and push to fork
+;;    - not sure if this is correct
+(use-package consult-gh
+  :straight (consult-gh :type git :host github :repo "armindarvish/consult-gh" :fork t)
+  :bind (("C-c g h i" . consult-gh-issue-search)
+         ("C-c g h p" . consult-gh-pr-search))
+  :custom
+  (consult-gh-prioritize-local-folder t)
+  ;(consult-gh-show-preview t)
+  ;(consult-gh-preview-key "M-o")
+  ;(consult-gh-repo-action #'consult-gh--repo-browse-files-action)
+  (consult-gh-issue-action #'consult-gh-forge--issue-view-action)
+  (consult-gh-pr-action #'consult-gh-forge--pr-view-action)
+  ;(consult-gh-code-action #'consult-gh--code-view-action)
+  ;(consult-gh-file-action #'consult-gh--files-view-action)
+  ;(consult-gh-large-file-warning-threshold 2500000)
+  :config
+  (require 'consult-gh-transient)
+  (require 'forge)
+  (require 'consult-gh-forge)
+  (add-to-list 'consult-gh-default-orgs-list "bertfrees")
+  (setq consult-gh-default-orgs-list
+          (append consult-gh-default-orgs-list
+                  (remove "" (split-string (or (consult-gh--command-to-string "org" "list") "") "\n")))
+        consult-gh-default-clone-directory "~/src/github/")
+  ;; FIXME: omit last column (repo)
+  (defun consult-gh-issue-search (&optional repo query)
+    (interactive)
+    (let* ((default-repo (or repo (consult-gh--get-repo-from-directory)))
+           (repo (if (and default-repo (not current-prefix-arg))
+                     default-repo
+                   (format "%s" (car (consult-gh-search-repos default-repo t)))))
+           (query (or query (read-from-minibuffer (format "Search in %s issues: " (cadr (split-string repo "/"))))))
+           (query (if (or (= 0 (length query)) (string-match " " query)) (format "\"%s\"" query) query))
+           (query (format "%s -- --search %s" repo query))
+           (sel (consult-gh--async-issue-list "Search: " #'consult-gh--issue-list-builder query))
+           (sel (cons (car sel) (plist-put (cdr sel) :repo repo))))
+      (funcall consult-gh-issue-action sel)))
+  ;; FIXME: single command for issues and pull requests would be better
+  (defun consult-gh-pr-search (&optional repo query)
+    (interactive)
+    (let* ((default-repo (or repo (consult-gh--get-repo-from-directory)))
+           (repo (if (and default-repo (not current-prefix-arg))
+                     default-repo
+                   (format "%s" (car (consult-gh-search-repos default-repo t)))))
+           (query (or query (read-from-minibuffer (format "Search in %s PRs: " (cadr (split-string repo "/"))))))
+           (query (if (or (= 0 (length query)) (string-match " " query)) (format "\"%s\"" query) query))
+           (query (format "%s -- --search %s" repo query))
+           (sel (consult-gh--async-pr-list "Search: " #'consult-gh--pr-list-builder query))
+           (sel (cons (car sel) (plist-put (cdr sel) :repo repo))))
+      (funcall consult-gh-pr-action sel))))
+
 #+END_SRC
 
 ** Org-mode
+
+- [-] try org-sidebar
+  - https://github.com/alphapapa/org-sidebar
+  - https://www.reddit.com/r/emacs/comments/jtydiy/who_needs_github_to_manage_a_project_when_you/
+  - org-sidebar-tree-toggle
+    - key binding?
+    - how to automatically put navigation of current org file in fringe when switching buffer?
+    - how to reduce width of fringe?
+    - how to not expand everything in navigation pane?
+    - annoying that a new buffer is created for every section (narrowed)
+    - does it make things very slow?
+- [ ] try org-ql
+  - https://github.com/alphapapa/org-ql
+- [ ] try org-super-agenda
+  - https://github.com/alphapapa/org-super-agenda
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
@@ -196,6 +549,7 @@
             ,(expand-file-name "~/Dropbox/org/roam/kamerplanten.org")
             ,(expand-file-name "~/Dropbox/org/roam/zaak/boekhouding.org")
             ,(expand-file-name "~/Dropbox/org/roam/veilingen.org")
+            ,(expand-file-name "~/Dropbox/org/roam/20240902094800-atelier_in_beeld.org")
             ,(expand-file-name "~/Dropbox/org/pipeline/todo.org")
             ,(expand-file-name "~/Dropbox/org/sbs/todo.org")
             )
@@ -256,6 +610,16 @@
                           (org-agenda-prefix-format " %i %?-12t% s")
                           (org-agenda-remove-tags t)))
               nil))))
+  (defun org-github-issue-link-open-with-forge (orig-fun &rest args)
+    (if current-prefix-arg
+        (apply orig-fun args)
+      (let* ((link (car args))
+             (type (org-element-property :type link))
+             (path (org-element-property :path link))
+             (url (concat type ":" path)))
+        (or (browse-github-issue-url-with-forge url)
+            (apply orig-fun args)))))
+  (advice-add 'org-link-open :around #'org-github-issue-link-open-with-forge)
   (defun org-clock-in-switch-to-doing (kw)
     (when (not (and (boundp 'org-capture-mode) org-capture-mode))
       (when (member (org-get-todo-state) '("TODO" "NEXT"))
@@ -279,13 +643,15 @@
 
 (use-package org-roam
   :ensure t
-  :defer 300
+  :defer 300 ;; ~ same as (run-with-idle-timer 300 nil #'org-roam-db-autosync-enable)
   :after emacsql-sqlite-builtin ;; see https://org-roam.discourse.group/t/org-roam-fails-with-selecting-deleted-buffer-error/3353/9
   :commands (org-roam-capture
              org-roam-buffer-toggle)
   :autoload (org-roam-node-find
              org-roam-node-insert)
-  :bind (("C-c n f" . org-roam-node-find-with-ivy)
+  :bind (("C-c n f" . org-roam-node-find-with-ivy) ;; FIXME: or can use vertico
+                                                   ;; - pretty much the same as ivy
+                                                   ;; - default behavior of org-roam-node-find ivertico-mode is enabled by default
          ("C-c n i" . org-roam-node-insert-with-ivy)
          ("C-c n c" . org-roam-capture)
          ("C-c n l" . org-roam-buffer-toggle))
@@ -298,6 +664,11 @@
            "%?"
            :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+FILETAGS:\n#+TITLE: ${title}\n")
            :unnarrowed t)))
+  ;; FIXME: is this needed and why?
+  ;; => shouldn't this be done automatically?
+  ;; => sometimes causes error, after which i need to do a M-x org-roam-db-sync
+  ;; => there is also a org-roam-update-org-id-locations function
+  ;(org-id-update-id-locations (directory-files-recursively org-roam-directory ".org$\\|.org.gpg$"))
   (org-roam-db-autosync-enable))
 
 (defun org-roam-node-find-with-ivy ()
@@ -323,6 +694,18 @@
 #+END_SRC
 
 ** Selection, completion, navigation
+
+- [ ] try embark!
+  - https://github.com/oantolin/embark
+- [ ] do i still need helm?
+- [X] try consult
+- [X] try vertico
+  - https://github.com/minad/vertico
+- [X] try marginalia
+  - https://github.com/minad/marginalia
+- [ ] try bufler?
+  - https://github.com/alphapapa/bufler.el
+
 *** Auto-complete
 
 #+NAME: config
@@ -342,6 +725,216 @@
         ac-quick-help-delay 1
         ac-use-comphist nil)
   (ac-set-trigger-key "TAB"))
+
+#+END_SRC
+
+*** Vertico
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package vertico
+  :ensure t
+  :init
+  (vertico-mode)
+
+  ;; Different scroll margin
+  ;; (setq vertico-scroll-margin 0)
+
+  ;; Show more candidates
+  ;; (setq vertico-count 20)
+
+  ;; Grow and shrink the Vertico minibuffer
+  ;; (setq vertico-resize t)
+
+  ;; Optionally enable cycling for `vertico-next' and `vertico-previous'.
+  ;; (setq vertico-cycle t)
+  )
+
+#+END_SRC
+
+*** Orderless
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package orderless
+  :ensure t
+  :custom
+  (completion-styles '(orderless basic))
+  (completion-category-overrides '((file (styles basic partial-completion)))))
+
+#+END_SRC
+
+*** Marginalia
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+;; Enable rich annotations using the Marginalia package
+(use-package marginalia
+  :ensure t
+  ;; Bind `marginalia-cycle' locally in the minibuffer.  To make the binding
+  ;; available in the *Completions* buffer, add it to the
+  ;; `completion-list-mode-map'.
+  :bind (:map minibuffer-local-map
+         ("M-A" . marginalia-cycle))
+
+  ;; The :init section is always executed.
+  :init
+
+  ;; Marginalia must be activated in the :init section of use-package such that
+  ;; the mode gets enabled right away. Note that this forces loading the
+  ;; package.
+  (marginalia-mode))
+
+#+END_SRC
+
+*** Consult
+
+- [ ] is it possible to have sections, like with helm? answer is yes
+- [ ] show column with title for force topics
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package consult
+  :ensure t
+  :bind (;; FIXME: special commands to filter buffers
+         ;; - C-x c t b: vterm buffers
+         ;; - C-x c o b: org-mode buffers
+         ;; - ...
+         ("C-x c b" . consult-buffer)
+         
+         ;; see also https://github.com/minad/consult#configuration:
+         
+         ;;; C-c bindings in `mode-specific-map'
+         ;("C-c M-x" . consult-mode-command)
+         ;("C-c h" . consult-history)
+         ;("C-c k" . consult-kmacro)
+         ;("C-c m" . consult-man)
+         ;("C-c i" . consult-info)
+         ;([remap Info-search] . consult-info)
+         ;;; C-x bindings in `ctl-x-map'
+         ;("C-x M-:" . consult-complex-command)     ;; orig. repeat-complex-command
+         ;("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
+         ;("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
+         ;("C-x t b" . consult-buffer-other-tab)    ;; orig. switch-to-buffer-other-tab
+         ;("C-x r b" . consult-bookmark)            ;; orig. bookmark-jump
+         ;("C-x p b" . consult-project-buffer)      ;; orig. project-switch-to-buffer
+         ;;; Custom M-# bindings for fast register access
+         ;("M-#" . consult-register-load)
+         ;("M-'" . consult-register-store)          ;; orig. abbrev-prefix-mark (unrelated)
+         ;("C-M-#" . consult-register)
+         ;;; Other custom bindings
+         ;("M-y" . consult-yank-pop)                ;; orig. yank-pop
+         ;;; M-g bindings in `goto-map'
+         ;("M-g e" . consult-compile-error)
+         ;("M-g f" . consult-flymake)               ;; Alternative: consult-flycheck
+         ;("M-g g" . consult-goto-line)             ;; orig. goto-line
+         ;("M-g M-g" . consult-goto-line)           ;; orig. goto-line
+         ;("M-g o" . consult-outline)               ;; Alternative: consult-org-heading
+         ;("M-g m" . consult-mark)
+         ;("M-g k" . consult-global-mark)
+         ;("M-g i" . consult-imenu)
+         ;("M-g I" . consult-imenu-multi)
+         ;;; M-s bindings in `search-map'
+         ;("M-s d" . consult-find)                  ;; Alternative: consult-fd
+         ;("M-s c" . consult-locate)
+         ;("M-s g" . consult-grep)
+         ;("M-s G" . consult-git-grep)
+         ;("M-s r" . consult-ripgrep)
+         ;("M-s l" . consult-line)
+         ;("M-s L" . consult-line-multi)
+         ;("M-s k" . consult-keep-lines)
+         ;("M-s u" . consult-focus-lines)
+         ;;; Isearch integration
+         ;("M-s e" . consult-isearch-history)
+         ;:map isearch-mode-map
+         ;("M-e" . consult-isearch-history)         ;; orig. isearch-edit-string
+         ;("M-s e" . consult-isearch-history)       ;; orig. isearch-edit-string
+         ;("M-s l" . consult-line)                  ;; needed by consult-line to detect isearch
+         ;("M-s L" . consult-line-multi)            ;; needed by consult-line to detect isearch
+         ;;; Minibuffer history
+         ;:map minibuffer-local-map
+         ;("M-s" . consult-history)                 ;; orig. next-matching-history-element
+         ;("M-r" . consult-history)                 ;; orig. previous-matching-history-element
+         )
+  :config
+  
+  ;; FIXME: remove buffer from list after killed and move to next buffer in list
+  (defun consult-kill-original-window-buffer ()
+    (interactive)
+    (kill-buffer (window-buffer (consult--original-window))))
+  (defun consult-buffer-bind-kill-buffer (orig-fun &rest args)
+    (unwind-protect
+        (progn
+          (keymap-set minibuffer-local-map "C-d" 'consult-kill-original-window-buffer)
+          (apply orig-fun args))
+      (keymap-set minibuffer-local-map "C-d" 'delete-char)))
+  (advice-add 'consult-buffer :around #'consult-buffer-bind-kill-buffer)
+  
+  ;; see also https://github.com/minad/consult#configuration:
+  
+  ;;; Enable automatic preview at point in the *Completions* buffer. This is
+  ;;; relevant when you use the default completion UI.
+  ;:hook (completion-list-mode . consult-preview-at-point-mode)
+  ;
+  ;;; The :init configuration is always executed (Not lazy)
+  ;:init
+  ;
+  ;;; Optionally configure the register formatting. This improves the register
+  ;;; preview for `consult-register', `consult-register-load',
+  ;;; `consult-register-store' and the Emacs built-ins.
+  ;(setq register-preview-delay 0.5
+  ;      register-preview-function #'consult-register-format)
+  ;
+  ;;; Optionally tweak the register preview window.
+  ;;; This adds thin lines, sorting and hides the mode line of the window.
+  ;(advice-add #'register-preview :override #'consult-register-window)
+  ;
+  ;;; Use Consult to select xref locations with preview
+  ;(setq xref-show-xrefs-function #'consult-xref
+  ;      xref-show-definitions-function #'consult-xref)
+  ;
+  ;;; Configure other variables and modes in the :config section,
+  ;;; after lazily loading the package.
+  ;:config
+  ;
+  ;;; Optionally configure preview. The default value
+  ;;; is 'any, such that any key triggers the preview.
+  ;;; (setq consult-preview-key 'any)
+  ;;; (setq consult-preview-key "M-.")
+  ;;; (setq consult-preview-key '("S-<down>" "S-<up>"))
+  ;;; For some commands and buffer sources it is useful to configure the
+  ;;; :preview-key on a per-command basis using the `consult-customize' macro.
+  ;(consult-customize
+  ; consult-theme :preview-key '(:debounce 0.2 any)
+  ; consult-ripgrep consult-git-grep consult-grep
+  ; consult-bookmark consult-recent-file consult-xref
+  ; consult--source-bookmark consult--source-file-register
+  ; consult--source-recent-file consult--source-project-recent-file
+  ; ;; :preview-key "M-."
+  ; :preview-key '(:debounce 0.4 any))
+  ;
+  ;;; Optionally configure the narrowing key.
+  ;;; Both < and C-+ work reasonably well.
+  ;(setq consult-narrow-key "<") ;; "C-+"
+  ;
+  ;;; Optionally make narrowing help available in the minibuffer.
+  ;;; You may want to use `embark-prefix-help-command' or which-key instead.
+  ;;; (define-key consult-narrow-map (vconcat consult-narrow-key "?") #'consult-narrow-help)
+  ;
+  ;;; By default `consult-project-function' uses `project-root' from project.el.
+  ;;; Optionally configure a different project root function.
+  ;;;;; 1. project.el (the default)
+  ;;; (setq consult-project-function #'consult--default-project--function)
+  ;;;;; 2. vc.el (vc-root-dir)
+  ;;; (setq consult-project-function (lambda (_) (vc-root-dir)))
+  ;;;;; 3. locate-dominating-file
+  ;;; (setq consult-project-function (lambda (_) (locate-dominating-file "." ".git")))
+  ;;;;; 4. projectile.el (projectile-project-root)
+  ;;; (autoload 'projectile-project-root "projectile")
+  ;;; (setq consult-project-function (lambda (_) (projectile-project-root)))
+  ;;;;; 5. No project support
+  ;;; (setq consult-project-function nil)
+  )
 
 #+END_SRC
 
@@ -475,7 +1068,9 @@ save it in `ffap-file-at-point-line-number' variable."
           message-kill-buffer-on-exit t
           message-signature nil)))
 
+;; FIXME: don't stop *mu4e-update* process when mu4e is quit
 (use-package mu4e
+  ;; FIXME: compute path with $(dir $(readlink -f /opt/homebrew/bin/mu)/../share/emacs/site-lisp/mu/mu4e
   :load-path "/opt/homebrew/Cellar/mu/1.12.4/share/emacs/site-lisp/mu/mu4e"
   :commands mu4e
   :bind ((("C-x m u"     . mu4e)
@@ -529,7 +1124,7 @@ save it in `ffap-file-at-point-line-number' variable."
         mu4e-decryption-policy 'ask
         mu4e-use-fancy-chars t
         mu4e-search-include-related nil
-        mu4e-headers-show-threads t
+        mu4e-headers-show-threads t ;; FIXME: fold all threads by default? or key binding for mu4e-view-thread-fold-toggle-all?
         mu4e-headers-date-format "%d %b"
         mu4e-headers-time-format "%H:%M"
         mu4e-headers-fields '((:human-date . 7)
@@ -640,6 +1235,37 @@ save it in `ffap-file-at-point-line-number' variable."
           "Untagged"
           ?-)
     t)
+  ;; FIXME: recompute when refreshing (g) the headers buffer
+  ;; -> using mu4e-search-hook instead of mu4e-search-bookmark-hook does not help
+  ;; -> for now need to do ~b g~
+  (add-hook 'mu4e-search-bookmark-hook #'mu4e-sync-github-notifications-before-search)
+  (defun mu4e-sync-github-notifications-before-search (query)
+    (when (string= query mu4e-github-notifications-query)
+      (advice-add 'mu4e~headers-append-handler :around #'mu4e-headers-append-github-notifications)))
+  (defun mu4e-headers-append-github-notifications (orig-fun msglst &rest args)
+    (unwind-protect
+      (progn
+        (require 'forge)
+        (forge-pull-notifications)
+        (let* ((notifs (forge--ls-notifications 'done))
+               (done (remq nil
+                           (mapcar (lambda (notif)
+                                     (with-slots (url) notif
+                                       (when (string-match "^https://api.github.com/repos/\\([^/]+/[^/]+\\)/\\(pulls\\|issues\\)/\\([0-9]+\\)$" url)
+                                         (format "%s/%s/%s" (match-string 1 url)
+                                                            (if (string= (match-string 2 url) "pulls") "pull" "issues")
+                                                            (match-string 3 url)))))
+                                   notifs))))
+          (dolist (m msglst)
+            (let* ((id (plist-get m :message-id)))
+              (when (string-match "^\\([^/]+/[^/]+\\)/\\(pull\\|issues\\)/\\([0-9]+\\)\\(/[^@]+\\)?@github\\.com$" id)
+                (let ((notif (format "%s/%s/%s" (match-string 1 id)
+                                                (match-string 2 id)
+                                                (match-string 3 id))))
+                  (when (member notif done)
+                    (mu4e-trash-message nil m nil))))))) ;; FIXME: don't trash starred messages
+        (apply orig-fun msglst args))
+      (advice-remove 'mu4e~headers-append-handler #'mu4e-headers-append-github-notifications)))
   (custom-set-faces
    '(mu4e-replied-face ((t nil)))
    '(mu4e-trashed-face ((t nil)))
@@ -651,9 +1277,15 @@ save it in `ffap-file-at-point-line-number' variable."
    '(mu4e-forwarded-face ((t nil)))
    '(mu4e-header-face ((t nil)))
    '(mu4e-thread-fold-face ((t (:background "#e0f4ff"))))
-   '(gnus-header ((t nil)))
+   '(gnus-header ((t nil))) ;; disable variable-pitch-text
+                            ;; => FIXME: does this not work anymore with leuven theme?
+                            ;;    -> gnus-header is set correctly and other faces normally inherit from it
+                            ;;    -> but theme makes them inherit from message-header-other, message-header-to,
+                            ;;       message-header-name, message-header-subject, etc.
    )
   ;; auto-completion for search query
+  ;; FIXME: don't use advice for interactive functions
+  ;; -> do it like mu4e-search-narrow-with-auto-compelte
   (defadvice mu4e-search (before mu4e-search-setup-auto-complete
                                  (&optional expr prompt edit ignore-history msgid show)
                                  activate)
@@ -681,6 +1313,7 @@ save it in `ffap-file-at-point-line-number' variable."
       '((prefix     . "\\(?:from:\\|to:\\)\\(\\(\\w\\|[\\.@_-]\\)+\\)")
         (candidates . (lambda ()
                         (let (keys)
+                          ;; FIXME: the mu4e--contacts-set variable is not set if mu4e-update isn't running?
                           (maphash (lambda (k v) (push k keys)) mu4e--contacts-set)
                           keys)))
         (match      . (lambda (prefix candicates)
@@ -750,6 +1383,41 @@ save it in `ffap-file-at-point-line-number' variable."
                     (propertize short-tag 'face face)))))
             tags)))
       " "))
+  ;; FIXME: patch mu4e instead of overriding whole function
+  ;; -> use straight.el for this
+  (defvar mu4e-headers-display-tags (lambda (tags) (propertize (mapconcat 'identity tags ", "))))
+  (defun mu4e~headers-field-value (msg field)
+    (let ((val (mu4e-message-field msg field)))
+      (cl-case field
+        (:subject
+         (concat ;; prefix subject with a thread indicator
+          (mu4e~headers-thread-prefix (mu4e-message-field msg :meta))
+          ;;  "["(plist-get (mu4e-message-field msg :meta) :path) "] "
+          ;; work-around: emacs' display gets really slow when lines are too long;
+          ;; so limit subject length to 600
+          (truncate-string-to-width val 600)))
+        (:thread-subject ;; if not searching threads, fall back to :subject
+         (if mu4e-search-threads
+             (mu4e~headers-thread-subject msg)
+           (mu4e~headers-field-value msg :subject)))
+        ((:maildir :path :message-id) val)
+        ((:to :from :cc :bcc) (mu4e~headers-contact-str val))
+        ;; if we (ie. `user-mail-address' is the 'From', show
+        ;; 'To', otherwise show From
+        (:from-or-to (mu4e~headers-from-or-to msg))
+        (:date (format-time-string mu4e-headers-date-format val))
+        (:list (or val ""))
+        (:mailing-list (mu4e~headers-mailing-list (mu4e-msg-field msg :list)))
+        (:human-date (propertize (mu4e~headers-human-date msg)
+                                 'help-echo (format-time-string
+                                             mu4e-headers-long-date-format
+                                             (mu4e-msg-field msg :date))))
+        (:flags (propertize (mu4e~headers-flags-str val)
+                            'help-echo (format "%S" val)))
+        (:tags (funcall mu4e-headers-display-tags val))
+        (:size (mu4e-display-size val))
+        (t (mu4e~headers-custom-field-value msg field)))))
+  (setq mu4e-headers-display-tags 'mu4e-display-tags)
   (defvar mu4e-mark-retag-arg nil)
   (defadvice mu4e-mark-execute-all (before mu4e-mark-prompt-retag-arg activate)
     (let (marked-for-tag)
@@ -804,10 +1472,13 @@ save it in `ffap-file-at-point-line-number' variable."
           (mu4e--server-remove docid)))))
   (defun mu4e-star-message (docid msg target)
     (mu4e-action-retag-message msg "+\\Starred"))
+  (defun mu4e-unstar-message (docid msg target)
+    ;(mu4e-action-retag-message msg "-\\Starred") ;; FIXME: this completely messes up things
+    )
   (defun mu4e-archive-message (docid msg target)
     (mu4e-action-retag-message msg "-\\Inbox,-\\Trash,-Github notifications/trash"))
   (defun mu4e-move-message-to-inbox (docid msg target)
-    (mu4e-action-retag-message msg "+\\Inbox,-\\Trash,-Github notifications/trash"))
+    (mu4e-action-retag-message msg "+\\Inbox,-\\Trash,-Github notifications/trash")) ;; FIXME: will Github move the message to maildir:/all?
   (defun mu4e-delete-message-permanently (docid msg target)
     (let ((maildir (mu4e-message-field msg :maildir)))
       (when (string= maildir "/trash")
@@ -829,6 +1500,11 @@ save it in `ffap-file-at-point-line-number' variable."
                :prompt "*star"
                :show-target (lambda (target) "star")
                :action mu4e-star-message)
+              (unstar
+               :char "o"
+               :prompt "ounstar"
+               :show-target (lambda (target) "unstar")
+               :action mu4e-unstar-message)
               (archive
                :char "a"
                :prompt "archive"
@@ -847,6 +1523,7 @@ save it in `ffap-file-at-point-line-number' variable."
   (mu4e~headers-defun-mark-for tag)
   (mu4e~headers-defun-mark-for tag-as-trash)
   (mu4e~headers-defun-mark-for star)
+  (mu4e~headers-defun-mark-for unstar)
   (mu4e~headers-defun-mark-for archive)
   (mu4e~headers-defun-mark-for inbox)
   (mu4e~headers-defun-mark-for delete-permanently)
@@ -858,6 +1535,13 @@ save it in `ffap-file-at-point-line-number' variable."
     (interactive)
     (let ((mu4e-search-include-related t))
       (mu4e-search (format "msgid:%s" (mu4e-message-field-at-point :message-id)))))
+  (defun mu4e-open-github-issue-link-with-forge (orig-fun &rest args)
+    (if current-prefix-arg
+        (apply orig-fun args)
+      (when-let ((url (or (car args) (mu4e--view-get-property-from-event 'mu4e-url))))
+        (or (browse-github-issue-url-with-forge url)
+            (apply orig-fun args)))))
+  (advice-add 'mu4e--view-browse-url-from-binding :around #'mu4e-open-github-issue-link-with-forge))
 
 (use-package mm-decode
   :config
@@ -875,10 +1559,20 @@ save it in `ffap-file-at-point-line-number' variable."
 
 ** IRC and Slack
 
+see also [[file:~/bin/bitlbee.org::*Bitlbee][Bitlbee]]
+
+- [ ] how come messages on slack are echoed? 
+
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
+;; see https://github.com/julienXX/erc-terminal-notifier.el
+;; FIXME: may need to modify this a bit to get less (or more) notifications
+;;        also to get sound
+;;        and in order to install terminal-notifier lazily
 (use-package erc-terminal-notifier
   :ensure t
+  :init
+  ;; run `make -C ~ terminal-notifier' (brew install terminal-notifier)
   )
 
 (use-package erc
@@ -891,6 +1585,11 @@ save it in `ffap-file-at-point-line-number' variable."
                                   "irc.libera.chat")
         erc-nick '("bert" "bfrees")
         erc-nickserv-identify-mode 'both
+        ;; NickServ passwords come from .authinfo.gpg
+        ;erc-nickserv-passwords
+        ;  '((BitlBee     (("bert" .   (password-store-get "bitlbee")))) ;; this didn't seem to work, but passing
+                                                                         ;; the password directly to the erc should
+        ;    (Libera.Chat (("bfrees" . (password-store-get "libera.chat")))))
         erc-autojoin-channels-alist
           '(("Libera.Chat" "#liblouis")
             ;"BitlBee" ... ;; autojoins for BitlBee are handled by BitlBee itself
@@ -901,6 +1600,15 @@ save it in `ffap-file-at-point-line-number' variable."
   (defun bitlbee ()
     (interactive)
     (when (not (get-buffer-process "*bitlbee*"))
+      ;; FIXME: pass pid path option  (do this within ../bin/bitlbee)
+      ;; FIXME: there is also the -x switch (command-line interface to password encryption/hashing)
+      ;; -> is encryption of passwords in config file not safe enough?
+      ;; FIXME: better to manage server outside of Emacs
+      ;; -> so that restarting Emacs is no issue at all
+      ;; -> Makefile: "make bitlbee-start"
+      ;; -> using existing daemon?
+      ;;    - use -u option to run daemon as specified user (bert)
+      ;; -> using launchctl?
       (start-process "bitlbee" "*bitlbee*"
                      (expand-file-name "../bin/bitlbee" user-emacs-directory) "-Fn"))
     (erc :server "localhost" :port 6667 :nick "bert"))
@@ -911,12 +1619,53 @@ save it in `ffap-file-at-point-line-number' variable."
 
 #+END_SRC
 
+** RSS/Atom
+
+See https://github.com/skeeto/elfeed.
+
+- [ ] look at org-elfeed
+  - https://lucidmanager.org/productivity/read-rss-feeds-with-emacs-and-elfeed/
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package elfeed
+  :ensure t
+  :bind ((("C-c w e" . elfeed))
+         :map elfeed-search-mode-map
+         ("g" . elfeed-search-fetch))
+  :config
+  (setq elfeed-db-directory (expand-file-name "elfeed" user-emacs-directory)
+        elfeed-show-entry-switch 'display-buffer
+        elfeed-feeds '("https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-belgium")
+        ;; FIXME: make this into a bookmark?
+        elfeed-search-filter "@2-days-ago +unread MeteoAlarm Antwerp\\|Brabant Yellow\\|Orange\\|Red #10")
+  (elfeed-update)
+  (run-at-time nil (* 4 60 60) #'elfeed-update)
+  ;; FIXME: test that this works
+  (defun elfeed-desktop-notifications (entry)
+    "Parse and display new feeds as desktop notifications."
+    (start-process "terminal-notifier" "*terminal-notifier*" "terminal-notifier"
+                   "-title" (concat
+                              (elfeed-feed-title (elfeed-deref (elfeed-entry-feed entry))) "\n"
+                              (elfeed-deref (elfeed-entry-title entry)))
+                   "-message" (elfeed-deref (elfeed-entry-content entry))
+                   "-sound" "default"
+                   "-sender" "com.apple.mail"))
+  (add-hook 'elfeed-new-entry-hook #'elfeed-desktop-notifications))
+
+#+END_SRC
+
 ** White space, indentation
+
+- [ ] use guess-style: https://www.emacswiki.org/emacs/GuessStyle
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
 (require 'whitespace)
 (global-whitespace-mode)
+;; FIXME: this does not seem to work in org-mode source blocks
+(setq whitespace-global-modes '(c-mode java-mode nxml-mode clojure-mode emacs-lisp-mode sh-mode makefile-mode))
+;; as a workaround, enable whitespace-mode in all programming modes
 (add-hook 'prog-mode-hook (lambda () (whitespace-mode t)))
 
 (custom-set-variables
@@ -966,14 +1715,30 @@ save it in `ffap-file-at-point-line-number' variable."
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
+(smart-tabs-add-language-support c c-mode-hook
+  ((c-indent-line . c-basic-offset)
+   (c-indent-region . c-basic-offset)))
+(smart-tabs-add-language-support java java-mode-hook
+  ((c-indent-line . c-basic-offset)
+   (c-indent-region . c-basic-offset)))
 (smart-tabs-add-language-support xml nxml-mode-hook
   ((nxml-indent-line . nxml-child-indent)))
+(smart-tabs-add-language-support html html-mode-hook
+  ((sgml-indent-line . sgml-basic-offset)))
 
-(smart-tabs-insinuate 'xml)
+(smart-tabs-insinuate 'c 'java 'xml 'html)
 
 #+END_SRC
 
-*** XML
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package flycheck
+  :ensure t)
+(global-flycheck-mode)
+
+#+END_SRC
+
+*** XML, HTML
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
@@ -1012,6 +1777,7 @@ save it in `ffap-file-at-point-line-number' variable."
         (condition-case nil
             (nxml-forward-balanced-item arg)
           (error nil)))))
+  ;; FIXME: what is the relationship with: tab-always-indent? (https://www.gnu.org/software/emacs/manual/html_node/elisp/Mode_002dSpecific-Indent.html)
   (defun try-indent ()
     (if (use-region-p)
         (progn
@@ -1123,9 +1889,142 @@ save it in `ffap-file-at-point-line-number' variable."
   :config
   (remove-hook 'nxml-mode-hook 'auto-complete-nxml-setup))
 
+(setq-default sgml-basic-offset 4)
+
+#+END_SRC
+
+*** C, Java
+
+#+NAME:config
+#+BEGIN_SRC emacs-lisp
+(use-package cc-mode
+  :config
+  (defconst c-my-java-style
+    '("java"
+      (c-offsets-alist . ((arglist-intro . +)
+                          (arglist-close . 0)))))
+  (c-add-style "my-java" c-my-java-style)
+  (defun c-set-java-style ()
+    (interactive)
+    (c-set-style "my-java")
+    (setq indent-tabs-mode t)
+    (setq tab-width 4)
+    (setq c-basic-offset 4)
+    (if whitespace-mode
+      (whitespace-turn-on)))
+  (add-hook 'c-mode-common-hook #'c-set-java-style))
+
+#+END_SRC
+
+- [ ] try projectile (not only for Java projects)
+- [-] try lsp-mode (to replace eclim)
+
+from https://emacs-lsp.github.io/lsp-mode/page/installation/ and
+https://github.com/emacs-lsp/lsp-java:
+
+#+NAME:config
+#+BEGIN_SRC emacs-lisp
+(use-package lsp-mode
+  :ensure t
+  :commands lsp
+  ;;:hook ((lsp-mode . lsp-enable-which-key-integration))
+  ;;:config
+  ;;;; set prefix for lsp-command-keymap (few alternatives - "C-l", "C-c l")
+  ;;(setq lsp-keymap-prefix "C-c l")
+  )
+
+(use-package lsp-java
+  :ensure t
+  :demand t
+  ;;:config (add-hook 'java-mode-hook 'lsp)
+  )
+
+;;(use-package lsp-ui :commands lsp-ui-mode)
+;;(use-package helm-lsp :commands helm-lsp-workspace-symbol)
+;;(use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
+;;(use-package lsp-treemacs :commands lsp-treemacs-errors-list)
+;;(use-package dap-mode)
+;;(use-package dap-java)
+;;(use-package which-key :config (which-key-mode))
+
+;;(use-package projectile)
+;;(use-package flycheck)
+;;(use-package yasnippet :config (yas-global-mode))
+;;(use-package lsp-mode :hook ((lsp-mode . lsp-enable-which-key-integration)))
+;;(use-package hydra)
+;;(use-package company)
+;;(use-package lsp-ui)
+;;(use-package which-key :config (which-key-mode))
+;;(use-package lsp-java :config (add-hook 'java-mode-hook 'lsp))
+;;(use-package dap-mode :after lsp-mode :config (dap-auto-configure-mode))
+;;(use-package dap-java :ensure nil)
+;;(use-package helm-lsp)
+;;(use-package helm :config (helm-mode))
+;;(use-package lsp-treemacs)
+
+#+END_SRC
+
+*** Lisp, Clojure
+
+#+NAME:config
+#+BEGIN_SRC emacs-lisp
+(use-package rainbow-delimiters :ensure t)
+
+(use-package clojure-mode
+  :ensure t
+  :mode ("\\.clj\\'" "\\.cljc\\'")
+  :interpreter ("clojure" "bb")
+  :bind (:map clojure-mode-map
+              (("C-x C-e" . clojure-vterm-execute-region-or-current-line)))
+  :config
+  (defvar clojure-vterm-execute-buffer nil)
+  (defun clojure-vterm-execute-region-or-current-line ()
+    "Insert text of current line in vterm and execute."
+    (interactive)
+    (require 'vterm)
+    (eval-when-compile (require 'subr-x))
+    (let ((command (if (region-active-p)
+                       (string-trim (buffer-substring
+                                     (save-excursion (region-beginning))
+                                     (save-excursion (region-end))))
+                     (string-trim (buffer-substring (save-excursion
+                                                      (thing-at-point--beginning-of-sexp)
+                                                      (point))
+                                                    (point))))))
+      (let* ((buf (current-buffer))
+             (vterm-buffer
+              (or (and (buffer-live-p clojure-vterm-execute-buffer) clojure-vterm-execute-buffer)
+                  (set (make-local-variable 'vterm-execute-buffer)
+                       (let ((vterm-shell "bb"))
+                         (vterm))))))
+        (display-buffer vterm-buffer t)
+        (switch-to-buffer-other-window vterm-buffer)
+        (vterm--goto-line -1)
+        (message command)
+        (vterm-send-string command)
+        (vterm-send-return)
+        (switch-to-buffer-other-window buf)))))
+
+;(add-hook 'clojure-mode-hook #'rainbow-delimiters-mode)
+;(add-hook 'emacs-lisp-mode-hook #'rainbow-delimiters-mode)
+(add-hook 'prog-mode-hook #'rainbow-delimiters-mode)
+
+;; indent-tabs-mode is automatically set to nil for elisp, except in org-mode source block edit buffers
+(add-hook 'emacs-lisp-mode-hook (lambda () (setq-local indent-tabs-mode nil)))
+
+#+END_SRC
+
 ** Shell
 
 See also [[file:../.zshrc.org][.zshrc]]
+
+- [ ] currently yank/kill/copy works through interprogram-killring, but could I make key bindings
+  for vterm-mode to do it via Emacs itself?
+  - see vterm-yank-primary?
+- [ ] for some reason the initial *vterm* buffer does not adapt its width to the window width
+  - nothing to do with vterm vs. multi-vterm
+  - nothing to do with initial-buffer-choice function
+  - but probably has everything to do with how emacs is started
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
@@ -1161,6 +2060,7 @@ See also [[file:../.zshrc.org][.zshrc]]
 
 ;;     C-x !: switch to vterm buffer for current directory
 ;; C-u C-x !: create new vterm buffer for current directory
+;; FIXME: command for switching to vterm buffer for current project (C-u C-u C-x t?)
 (global-set-key (kbd "C-x !") 'switch-to-vterm-buffer-for-directory)
 
 (use-package vterm
