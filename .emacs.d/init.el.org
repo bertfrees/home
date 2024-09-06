@@ -453,6 +453,426 @@ save it in `ffap-file-at-point-line-number' variable."
 
 #+END_SRC
 
+** Email
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(setq user-mail-address "bertfrees@gmail.com"
+      user-full-name "Bert Frees"
+      mail-user-agent 'mu4e-user-agent)
+
+(global-unset-key (kbd "C-x m"))
+
+(use-package smtpmail
+  :demand t
+  :config
+  (setq smtpmail-stream-type 'ssl
+        smtpmail-smtp-server "smtp.gmail.com"
+        smtpmail-smtp-service 465)
+  (use-package message
+    :config
+    (setq message-send-mail-function 'smtpmail-send-it
+          message-kill-buffer-on-exit t
+          message-signature nil)))
+
+(use-package mu4e
+  :load-path "/opt/homebrew/Cellar/mu/1.12.4/share/emacs/site-lisp/mu/mu4e"
+  :commands mu4e
+  :bind ((("C-x m u"     . mu4e)
+          ("C-x µ"       . mu4e)
+          ("C-x m C"     . compose-mail))
+         :map mu4e-headers-mode-map
+         ("t"            . mu4e-headers-mark-for-tag)
+         ("d"            . mu4e-headers-mark-for-tag-as-trash)
+         ("<backspace>"  . mu4e-headers-mark-for-tag-as-trash)
+         ("D"            . mu4e-headers-mark-for-delete-permanently)
+         ("<delete>"     . mu4e-headers-mark-for-delete-permanently)
+         ("<deletechar>" . mu4e-headers-mark-for-delete-permanently)
+         ("*"            . mu4e-headers-mark-for-star)
+         ("o"            . mu4e-headers-mark-for-unstar)
+         ("a"            . mu4e-headers-mark-for-archive)
+         ("i"            . mu4e-headers-mark-for-inbox)
+         ("?"            . mu4e-headers-mark-for-unread)
+         ("x"            . mu4e-mark-execute-all-no-confirmation)
+         ("m"            . nil)
+         ("+"            . nil)
+         ("-"            . nil)
+         :map mu4e-compose-minor-mode-map
+         ("R"            . mu4e-compose-wide-reply)
+         ("W"            . nil)
+         :map mu4e-view-mode-map
+         ("W"            . mu4e-view-show-in-thread)
+         ("t"            . mu4e-view-mark-for-tag)
+         ("d"            . mu4e-view-mark-for-tag-as-trash)
+         ("<backspace>"  . mu4e-view-mark-for-tag-as-trash)
+         ("D"            . mu4e-view-mark-for-delete-permanently)
+         ("<delete>"     . mu4e-view-mark-for-delete-permanently)
+         ("<deletechar>" . mu4e-view-mark-for-delete-permanently)
+         ("a"            . mu4e-view-mark-for-archive)
+         ("m"            . nil)
+         ("+"            . nil)
+         ("-"            . nil)
+         ("C-c C-o"      . mu4e--view-browse-url-from-binding)
+         :map mu4e-search-minor-mode-map
+         ("/"            . mu4e-search-narrow-with-auto-complete)
+         )
+  :config
+  (setq mu4e-get-mail-command "offlineimap"
+        mu4e~update-buffer-height 10
+        mu4e-hide-index-messages t
+        mu4e-action-tags-header "X-Keywords"
+        mu4e-trash-folder "/trash"
+        mu4e-sent-folder "/sent"
+        mu4e-drafts-folder "/drafts"
+        mu4e-attachment-dir "~/Desktop"
+        mu4e-sent-messages-behavior 'delete
+        mu4e-decryption-policy 'ask
+        mu4e-use-fancy-chars t
+        mu4e-search-include-related nil
+        mu4e-headers-show-threads t
+        mu4e-headers-date-format "%d %b"
+        mu4e-headers-time-format "%H:%M"
+        mu4e-headers-fields '((:human-date . 7)
+                              (:from . 25)
+                              (:subject . 68)
+                              (:tags))
+        mu4e-confirm-quit nil)
+  (defvar mailinglists-to-ignore '("accessibility@global.libreoffice.org" ;; FIXME: unsubscribe
+                                   "transition-to-accessible-epub@mail.daisy.org"
+                                   "xproc-dev@w3.org"))
+  (setq gmail-labels '("Mailboxen"              ("bert.frees@sbs.ch"                             "#00BFFF"
+                                                   "bert@sonuwe.com"                               "#C39EF0"
+                                                   "bertfrees@gmail.com"                           "#FFAC26"
+                                                   "bertfrees@hotmail.com"                         "#FF6EC3"
+                                                   "bertfrees@openoffice.org"                      nil
+                                                   "bertfrees@users.sourceforge.net"               nil)
+                         "Mailinglijsten"         ("brailleblaster@freelists.org"                  nil
+                                                   "brailleutils@googlegroups.com"                 nil
+                                                   "daisymfc-developer@lists.sourceforge.net"      "#0982B3"
+                                                   "daisy-pipeline@mail.daisy.org"                 "#0982B3"
+                                                   "daisy-pipeline-braille@googlegroups.com"       "#0982B3"
+                                                   "daisy-pipeline-dev@googlegroups.com"           "#0982B3"
+                                                   "ebraille@daisylists.org"                       "#58BAE0"
+                                                   "liblouis-liblouisxml@freelists.org"            "#EBCC1E"
+                                                   "libreoffice@lists.freedesktop.org"             nil
+                                                   "odt2braille-develop@lists.sourceforge.net"     "#FF4000"
+                                                   "technical-developments@mail.daisy.org"         nil
+                                                   "transition-to-accessible-epub@mail.daisy.org"  nil
+                                                   "xproc-dev@w3.org"                              nil)
+                         "Tags"                   ("accessodf"                                     "#FF4000"
+                                                   "ebraille"                                      "#58BAE0"
+                                                   "jobs"                                          nil
+                                                   "liblouis"                                      "#EBCC1E"
+                                                   "odt2braille"                                   "#FF4000"
+                                                   "odt2daisy"                                     nil
+                                                   "pipeline"                                      "#0982B3"
+                                                   "refile"                                        nil
+                                                   "sbs"                                           "#00BFFF"
+                                                   "snaekobbi"                                     "#23CC72"
+                                                   "ties"                                          nil
+                                                   "zaak"                                          nil)
+                         "Github notifications"   (nil                                             nil)
+                         "Archieven"              ("aegis"                                         nil
+                                                   "alternate.textbooks@dsv.kuleuven.be"           nil
+                                                   "bert.frees@esat.kuleuven.be"                   nil
+                                                   "kuleuven"                                      nil)))
+  (let ((face 'gmail-label-default-face))
+    (make-face face)
+    (set-face-attribute face nil ':slant 'italic)
+    (set-face-attribute face nil ':foreground "#B0B0B0"))
+  (require 'cl-lib)
+  (cl-loop for (superlabel sublabels) on gmail-labels by #'cddr do
+    (cl-loop for (sublabel colors) on sublabels by #'cddr do
+      (let* ((label (if sublabel (concat superlabel "/" sublabel) superlabel))
+             (face (intern (format "gmail-label-%s-face" (string-replace " " "-" label))))
+             (foreground (if (listp colors) (car colors) colors))
+             (background (if (listp colors) (cdr colors))))
+        (make-face face)
+        (set-face-attribute face nil ':weight 'bold)
+        (set-face-attribute face nil ':foreground (or foreground "#B0B0B0"))
+        (when background (set-face-attribute face nil ':background background)))))
+  (setq mu4e-github-notifications-query
+        "from:notifications@github.com AND maildir:/all AND NOT tag:\\\\Trash AND NOT tag:Github\\ Notifications/trash")
+  (setq mu4e-bookmarks `(("tag:\\\\Inbox AND maildir:/all AND NOT tag:\\\\Trash"                             "Inbox"                ?i)
+                         (,(concat "flag:unread AND maildir:/all AND NOT tag:\\\\Trash"
+                                   " AND NOT tag:Github\\ notifications/trash"
+                                   (string-join (mapcar (lambda (x) (concat " AND NOT tag:Mailinglijsten/" x))
+                                                        mailinglists-to-ignore)
+                                                ""))                                                         "Unread"               ?u)
+                         (,mu4e-github-notifications-query                                                   "Github notifications" ?g)
+                         (,(concat "maildir:/all AND NOT tag:\\\\Trash"
+                                   " AND NOT tag:Github\\ Notifications/trash AND ("
+                                   (string-join '("tag:Mailinglijsten/liblouis-liblouisxml@freelists.org"
+                                                  "tag:Tags/liblouis")
+                                                " OR ")
+                                    ")")                                                                     "Liblouis"             ?l)
+                         (,(concat "maildir:/all AND NOT tag:\\\\Trash"
+                                   " AND NOT tag:Github\\ Notifications/trash AND ("
+                                   (string-join '("tag:Mailinglijsten/daisy-pipeline-dev@googlegroups.com"
+                                                   "tag:Mailinglijsten/daisy-pipeline@mail.daisy.org"
+                                                   "tag:Tags/pipeline")
+                                                 " OR ")
+                                    ")")                                                                     "DAISY Pipeline"       ?p)
+                         (,(concat "date:today..now AND maildir:/all AND NOT tag:\\\\Trash"
+                                   " AND NOT tag:Github\\ Notifications/trash"
+                                   (string-join (mapcar (lambda (x) (concat " AND NOT tag:Mailinglijsten/" x))
+                                                        mailinglists-to-ignore)
+                                                ""))                                                         "Today's messages"     ?t)
+                         (,(concat "date:7d..now AND maildir:/all AND NOT tag:\\\\Trash"
+                                   " AND NOT tag:Github\\ Notifications/trash"
+                                   (string-join (mapcar (lambda (x) (concat " AND NOT tag:Mailinglijsten/" x))
+                                                        mailinglists-to-ignore)
+                                                ""))                                                         "Last 7 days"          ?w)
+                         ("maildir:/sent OR tag:\\\\Sent"                                                    "Sent"                 ?s)
+                         ("tag:\\\\Starred"                                                                  "Starred"              ?*)
+                         ("maildir:/trash OR tag:\\\\Trash OR tag:Github\\ Notifications/trash"              "Trash"                ?d)))
+  ;; check that all messages have tags
+  (add-to-list 'mu4e-bookmarks
+    (list (let (labels)
+            (cl-loop for (superlabel sublabels) on gmail-labels by #'cddr do
+              (cl-loop for sublabel in sublabels by #'cddr
+                       unless (and (string= superlabel "Mailboxen")
+                                   (not (member sublabel '("bert.frees@sbs.ch")))) do
+                (add-to-list 'labels (if sublabel (concat superlabel "/" sublabel) superlabel) t)))
+            (concat "maildir:/all AND NOT tag:\\\\Inbox AND NOT tag:\\\\Trash AND NOT tag:Github\\ notifications/trash"
+                    (string-join (mapcar (lambda (x) (concat " AND NOT tag:" (string-replace " " "\\ " x)))
+                                         labels) "")))
+          "Untagged"
+          ?-)
+    t)
+  (custom-set-faces
+   '(mu4e-replied-face ((t nil)))
+   '(mu4e-trashed-face ((t nil)))
+   '(mu4e-draft-face ((t nil)))
+   '(mu4e-unread-face ((t (:weight bold))))
+   '(mu4e-header-highlight-face ((t (:inherit hl-line :underline t))))
+   '(mu4e-flagged-face ((t nil)))
+   '(mu4e-replied-face ((t nil)))
+   '(mu4e-forwarded-face ((t nil)))
+   '(mu4e-header-face ((t nil)))
+   '(mu4e-thread-fold-face ((t (:background "#e0f4ff"))))
+   '(gnus-header ((t nil)))
+   )
+  ;; auto-completion for search query
+  (defadvice mu4e-search (before mu4e-search-setup-auto-complete
+                                 (&optional expr prompt edit ignore-history msgid show)
+                                 activate)
+    (unless expr
+      (add-hook 'minibuffer-setup-hook 'mu4e-search-minibuffer-setup)
+      (add-hook 'minibuffer-exit-hook 'mu4e-search-minibuffer-exit)))
+  (defun mu4e-search-narrow-with-auto-complete ()
+    (interactive)
+    (add-hook 'minibuffer-setup-hook 'mu4e-search-minibuffer-setup)
+    (add-hook 'minibuffer-exit-hook 'mu4e-search-minibuffer-exit)
+    (mu4e-search-narrow (mu4e-search-read-query (mu4e-format "Narrow down to: "))))
+  (defun mu4e-search-minibuffer-setup ()
+    (setq-local ac-sources '(ac-source-mu4e-search-from-to
+                             ac-source-mu4e-search-tag
+                             ac-source-mu4e-search-flag))
+    (setq-local ac-menu-height 3)
+    (setq-local ac-quick-help-height 3)
+    (auto-complete-mode t))
+  (defun mu4e-search-minibuffer-exit ()
+    (remove-hook 'minibuffer-setup-hook 'mu4e-search-minibuffer-setup)
+    (remove-hook 'minibuffer-exit-hook 'mu4e-search-minibuffer-exit))
+  (use-package auto-complete
+    :config
+    (ac-define-source mu4e-search-from-to
+      '((prefix     . "\\(?:from:\\|to:\\)\\(\\(\\w\\|[\\.@_-]\\)+\\)")
+        (candidates . (lambda ()
+                        (let (keys)
+                          (maphash (lambda (k v) (push k keys)) mu4e--contacts-set)
+                          keys)))
+        (match      . (lambda (prefix candicates)
+                        (mapcar (lambda (contact)
+                                  (if (string-match "<\\(.+\\)>" contact)
+                                      (match-string 1 contact)
+                                    contact))
+                                (ac-match-substring prefix candicates))))
+        (document   . (lambda (address)
+                        (let ((address-regexp (concat "<" (regexp-quote address) ">"))
+                              (contacts (let (keys)
+                                          (maphash (lambda (k v) (push k keys)) mu4e--contacts-set)
+                                          keys))
+                              contact)
+                          (while (and contacts (not contact))
+                            (setq contact (car contacts))
+                            (setq contacts (cdr contacts))
+                            (when (not (string-match address-regexp contact))
+                              (setq contact nil)))
+                          (setq contact (or contact address)))))
+        (cache)))
+    (ac-define-source mu4e-search-tag
+      '((prefix     . "\\(?:tag:\\)\\(\\(\\w\\|/\\)+\\)")
+        (candidates . (lambda () (let ((labels (list "\\\\Inbox" "\\\\Sent" "\\\\Trash" "\\\\Important" "\\\\Starred")))
+                                   (cl-loop for (superlabel sublabels) on gmail-labels by #'cddr do
+                                     (cl-loop for sublabel in sublabels by #'cddr do
+                                       (add-to-list 'labels (string-replace " " "\\ "
+                                                                            (if sublabel
+                                                                                (concat superlabel "/" sublabel)
+                                                                              superlabel)) t)))
+                                   labels)))
+        (match      . substring)
+        (cache)))
+    (ac-define-source mu4e-search-flag
+      '((prefix     . "\\(?:flag:\\)\\(\\(\\w\\|/\\)+\\)")
+        (candidates . '("attach" "draft" "flagged" "list" "new" "passed" "replied"
+                        "seen" "trashed" "unread" "encrypted" "signed" "personal"))
+        (match      . substring)
+        (cache))))
+  (defface gmail-label-starred-face
+    '((t :inherit default :foreground "#A370E0" :family "monospace" :height 0.85)) nil)
+  (defface gmail-label-unstarred-face
+    '((t :inherit default :foreground "#DDDDDD" :family "monospace" :height 0.85)) nil)
+  (defun mu4e-display-tags (tags)
+    (string-join
+      (append
+        `(,(if (member "\\Starred" tags)
+               (propertize "★" 'face 'gmail-label-starred-face)
+             (propertize "☆" 'face 'gmail-label-unstarred-face)))
+        (delq nil
+          (mapcar
+            (lambda (tag)
+              (let ((short-tag
+                     (cond ((string-match "^\\\\\\(Inbox\\|Sent\\|Trash\\)$" tag)
+                            (match-string 1 tag))
+                           ((string-match "^\\(Mailboxen/[^@]+\\)\\(@.+\\)$" tag)
+                            (match-string 2 tag))
+                           ((string-match "^\\(Tags\\|Mailinglijsten\\|Archieven\\)/\\(.+\\)$" tag)
+                            (match-string 2 tag))
+                           ((string-match "^Github notifications$" tag)
+                            "github")
+                           ((string-match "^Github notifications/trash$" tag)
+                            "Trash"))))
+                (when short-tag
+                  (let* ((face (intern (format "gmail-label-%s-face" (string-replace " " "-" tag))))
+                         (face (if (facep face) face 'gmail-label-default-face)))
+                    (propertize short-tag 'face face)))))
+            tags)))
+      " "))
+  (defvar mu4e-mark-retag-arg nil)
+  (defadvice mu4e-mark-execute-all (before mu4e-mark-prompt-retag-arg activate)
+    (let (marked-for-tag)
+      (maphash (lambda (docid val)
+                 (let ((mark (car val)))
+                   (when (eql mark 'tag)
+                     (setq marked-for-tag t))))
+               mu4e--mark-map)
+      (when marked-for-tag
+        (add-hook 'minibuffer-setup-hook 'mu4e-tag-minibuffer-setup)
+        (add-hook 'minibuffer-exit-hook 'mu4e-tag-minibuffer-exit)
+        (setq mu4e-mark-retag-arg (read-string "Tags for marked messages: ")))))
+  (defun mu4e-tag-minibuffer-setup ()
+    (setq-local ac-sources '(ac-source-mu4e-tag))
+    (setq-local ac-menu-height 3)
+    (setq-local ac-quick-help-height 3)
+    (auto-complete-mode t)
+    (insert "+"))
+  (defun mu4e-tag-minibuffer-exit ()
+    (remove-hook 'minibuffer-setup-hook 'mu4e-tag-minibuffer-setup)
+    (remove-hook 'minibuffer-exit-hook 'mu4e-tag-minibuffer-exit))
+  (defun mu4e-mark-execute-all-no-confirmation ()
+    (interactive)
+    (mu4e-mark-execute-all t))
+  (use-package auto-complete
+    :config
+    (ac-define-source mu4e-tag
+      '((prefix     . "\\(?:[\\+\\-]\\)\\(\\(\\w\\|[\\\\/]\\)+\\)")
+        (candidates . (lambda () (let ((labels (list "\\Inbox" "\\Trash" "\\Important")))
+                                   (cl-loop for (superlabel sublabels) on gmail-labels by #'cddr do
+                                     (cl-loop for sublabel in sublabels by #'cddr do
+                                       (add-to-list 'labels (string-replace " " "\\ "
+                                                                            (if sublabel
+                                                                                (concat superlabel "/" sublabel)
+                                                                              superlabel)) t)))
+                                   labels)))
+        (match      . substring)
+        (cache))))
+  (defun mu4e-tag-message (docid msg target)
+    (mu4e-action-retag-message msg mu4e-mark-retag-arg))
+  (defun mu4e-trash-message (docid msg target)
+    (let ((maildir (mu4e-message-field msg :maildir)))
+      (if (string= maildir "/all")
+          (if (member "Github notifications" (mu4e-message-field msg :tags))
+              (if (not (member 'seen (mu4e-message-field msg :flags)))
+                  (mu4e-action-retag-message msg "-Github notifications,+Github notifications/trash")
+                (mu4e-action-retag-message msg "+\\Trash"))
+            (if (member "Github notifications/trash" (mu4e-message-field msg :tags))
+                (mu4e-action-retag-message msg "-Github notifications/trash,+Github notifications,+\\Trash")
+              (mu4e-action-retag-message msg "+\\Trash")))
+        (when (string= maildir "/trash")
+          (mu4e--server-remove docid)))))
+  (defun mu4e-star-message (docid msg target)
+    (mu4e-action-retag-message msg "+\\Starred"))
+  (defun mu4e-archive-message (docid msg target)
+    (mu4e-action-retag-message msg "-\\Inbox,-\\Trash,-Github notifications/trash"))
+  (defun mu4e-move-message-to-inbox (docid msg target)
+    (mu4e-action-retag-message msg "+\\Inbox,-\\Trash,-Github notifications/trash"))
+  (defun mu4e-delete-message-permanently (docid msg target)
+    (let ((maildir (mu4e-message-field msg :maildir)))
+      (when (string= maildir "/trash")
+        (mu4e--server-remove docid))))
+  (setq mu4e-marks
+    (append mu4e-marks
+            '((tag
+               :char "t"
+               :prompt "tag"
+               :show-target (lambda (target) "tag")
+               :action mu4e-tag-message)
+              (tag-as-trash
+               :char "d"
+               :prompt "dtrash"
+               :show-target (lambda (target) "trash")
+               :action mu4e-trash-message)
+              (star
+               :char "*"
+               :prompt "*star"
+               :show-target (lambda (target) "star")
+               :action mu4e-star-message)
+              (archive
+               :char "a"
+               :prompt "archive"
+               :show-target (lambda (target) "archive")
+               :action mu4e-archive-message)
+              (inbox
+               :char "i"
+               :prompt "iMove to inbox"
+               :show-target (lambda (target) "inbox")
+               :action mu4e-move-message-to-inbox)
+              (delete-permanently
+               :char "D"
+               :prompt "Ddelete"
+               :show-target (lambda (target) "delete")
+               :action mu4e-delete-message-permanently))))
+  (mu4e~headers-defun-mark-for tag)
+  (mu4e~headers-defun-mark-for tag-as-trash)
+  (mu4e~headers-defun-mark-for star)
+  (mu4e~headers-defun-mark-for archive)
+  (mu4e~headers-defun-mark-for inbox)
+  (mu4e~headers-defun-mark-for delete-permanently)
+  (mu4e--view-defun-mark-for tag)
+  (mu4e--view-defun-mark-for tag-as-trash)
+  (mu4e--view-defun-mark-for delete-permanently)
+  (mu4e--view-defun-mark-for archive)
+  (defun mu4e-view-show-in-thread ()
+    (interactive)
+    (let ((mu4e-search-include-related t))
+      (mu4e-search (format "msgid:%s" (mu4e-message-field-at-point :message-id)))))
+
+(use-package mm-decode
+  :config
+  (add-to-list 'mm-discouraged-alternatives "text/html")
+  (add-to-list 'mm-discouraged-alternatives "text/richtext"))
+
+(use-package mu4e-compose
+  :config
+  (setq mu4e-compose-complete-addresses t
+        mu4e-compose-complete-only-personal nil
+        mu4e-compose-complete-only-after "2012-02-01"
+        mu4e-compose-complete-ignore-address-regexp "not?-?reply"))
+
+#+END_SRC
+
 ** IRC and Slack
 
 #+NAME: config

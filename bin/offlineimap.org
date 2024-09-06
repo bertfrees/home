@@ -145,9 +145,14 @@ sslcacertfile = ~/.offlineimap/Account-gmail/globalsign-root-ca.pem
   (when (.exists last-sync)
     (let [last-modified (.format (SimpleDateFormat. "yyyy-MM-dd'T'HH:mm:ssX")
                                  (.lastModified last-sync))
+          mailinglists-to-ignore ["accessibility@global.libreoffice.org"
+                                  "transition-to-accessible-epub@mail.daisy.org"
+                                  "xproc-dev@w3.org"]
           mu-find ["mu" "find" "-f" "f\ts" "-s" "date" "flag:unread"
                                                        "AND" "maildir:/all"
-                                                       "AND" (str "date:" last-modified "..")]
+                   "AND" (str "date:" last-modified "..")
+                   (map (fn [x] ["AND" "NOT" (str "tag:Mailinglijsten/" x)]) mailinglists-to-ignore)]
+          mu-find (flatten mu-find)
           mu-find (apply sh {:out :string :err :inherit} mu-find)]
       (case (:exit mu-find)
         0 (let [new-mail (str/split-lines (:out mu-find))]
