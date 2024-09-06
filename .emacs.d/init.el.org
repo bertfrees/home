@@ -911,7 +911,68 @@ save it in `ffap-file-at-point-line-number' variable."
 
 #+END_SRC
 
+** White space, indentation
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(require 'whitespace)
+(global-whitespace-mode)
+(add-hook 'prog-mode-hook (lambda () (whitespace-mode t)))
+
+(custom-set-variables
+ '(whitespace-style '(face
+                      tabs
+                      spaces
+                      newline
+                      space-mark
+                      tab-mark
+                      newline-mark
+                      indentation
+                      trailing
+                      space-after-tab::tab
+                      space-before-tab))
+ '(whitespace-trailing-regexp
+    "[^\n\t ]\\(\\(\t\\| \\|\xA0\\|\x8A0\\|\x920\\|\xE20\\|\xF20\\)+\\)$")
+ '(whitespace-indentation-regexp
+    '("^\t*\\(\\( \\)+\\)" . "^ *\\(\t+\\)"))
+ '(whitespace-space-after-tab-regexp
+    '("\t+\\(\\( \\)+\\)[^ \t]" . "\\(\t+\\) +")))
+
+(custom-set-faces
+  '(whitespace-tab              ((t (:foreground "#eeeeee"))))
+  '(whitespace-space            ((t (:foreground "#eeeeee"))))
+  '(whitespace-newline          ((t (:foreground "#eeeeee"))))
+  '(whitespace-hspace           ((t (:foreground "#cccccc"))))
+  '(whitespace-indentation      ((t (:foreground "#ffffff" :background "#dddddd"))))
+  '(whitespace-trailing         ((t (:foreground "#cccccc" :background "#ffffff"))))
+  '(whitespace-space-after-tab  ((t (:foreground "#ffffff" :background "#dddddd"))))
+  '(whitespace-space-before-tab ((t (:foreground "#cccccc" :background "#ffffff")))))
+
+(setq-default indent-tabs-mode t)
+(setq-default tab-width 4)
+
+;; intelligently indent with tabs, align with spaces
+;; see https://www.emacswiki.org/emacs/SmartTabs
+(use-package smart-tabs-mode :ensure t)
+(require 'cl-lib)
+;; to avoid "eager macro-expansion skipped due to cycle" error
+(cl-letf (((symbol-function 'internal-macroexpand-for-load) nil))
+  (fmakunbound 'internal-macroexpand-for-load)
+  (require 'smart-tabs-mode))
+
+#+END_SRC
+
 ** Programming
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(smart-tabs-add-language-support xml nxml-mode-hook
+  ((nxml-indent-line . nxml-child-indent)))
+
+(smart-tabs-insinuate 'xml)
+
+#+END_SRC
+
 *** XML
 
 #+NAME: config
