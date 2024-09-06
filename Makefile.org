@@ -252,10 +252,12 @@ essential : emacs zsh git pass karabiner
 #+NAME: Makefile-recipes
 #+BEGIN_SRC makefile
 EMACS := bin/emacs
-WORGLE_FILES += $(EMACS) .emacs.d/init.el
+EMACSCLIENT := bin/emacsclient
+WORGLE_FILES += $(EMACS) $(EMACSCLIENT) bin/editor .emacs.d/init.el
 .PHONY : emacs
 emacs : $(EMACS)
-$(EMACS) : /Applications/Emacs.app/Contents/MacOS/Emacs .emacs.d/init.el
+$(EMACS) bin/editor : $(EMACSCLIENT)
+$(EMACSCLIENT) : /Applications/Emacs.app/Contents/MacOS/Emacs .emacs.d/init.el
 /Applications/Emacs.app/Contents/MacOS/Emacs :
 	(require '[lib :refer [install]])                                                       \
 	(install {:type :dmg                                                                    \

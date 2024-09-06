@@ -103,30 +103,30 @@ sslcacertfile = ~/.offlineimap/Account-gmail/globalsign-root-ca.pem
 (let [home-dir (.getParentFile (.getParentFile (io/file *file*)))]
   (when (not (= 0 (:exit (sh {:dir home-dir :out :inherit :err :inherit}
                          "bin/make" "mu"))))
-    (System/exit 1)))
-(let [emacs-running #(.exists (io/file (str (System/getProperty "java.io.tmpdir")
-                                            "/emacs"
-                                            (.trim  (:out (sh  {:out :string} "id -u bert")))
-                                            "/server")))
-      postindex (io/file (.getParentFile (io/file *file*)) "postindex")
-      postindex (.getAbsolutePath postindex)]
-  (if (emacs-running)
-    (let [emacsclient "/Applications/Emacs.app/Contents/MacOS/bin/emacsclient"
-          emacsclient (fn [& args] (:exit (apply sh {:err :inherit} emacsclient args)))]
-      (emacsclient "-e" (format "(progn
-                                   (mu4e t)
-                                   (let ((reset-mu4e-index-updated-hook mu4e-index-updated-hook))
-                                     (setq mu4e-index-updated-hook
-                                           (cons (lambda ()
-                                                   (progn (message (shell-command-to-string \"%s\"))
-                                                          (setq mu4e-index-updated-hook
-                                                                reset-mu4e-index-updated-hook)))
-                                                 mu4e-index-updated-hook))
-                                     (mu4e-update-index)))"
-                                postindex)))
-    (do (when (not (= 0 (:exit (sh {:out :inherit :err :inherit} "mu" "index"))))
-          (System/exit 1))
-        (exec postindex))))
+    (System/exit 1))
+  (let [emacs-running #(.exists (io/file (str (System/getProperty "java.io.tmpdir")
+                                              "/emacs"
+                                              (.trim  (:out (sh  {:out :string} "id -u bert")))
+                                              "/server")))
+        postindex (io/file (.getParentFile (io/file *file*)) "postindex")
+        postindex (.getAbsolutePath postindex)]
+    (if (emacs-running)
+      (let [emacsclient (io/file home-dir "bin/emacsclient")
+            emacsclient (fn [& args] (:exit (apply sh {:err :inherit} emacsclient args)))]
+        (emacsclient "-e" (format "(progn
+                                     (mu4e t)
+                                     (let ((reset-mu4e-index-updated-hook mu4e-index-updated-hook))
+                                       (setq mu4e-index-updated-hook
+                                             (cons (lambda ()
+                                                     (progn (message (shell-command-to-string \"%s\"))
+                                                            (setq mu4e-index-updated-hook
+                                                                  reset-mu4e-index-updated-hook)))
+                                                   mu4e-index-updated-hook))
+                                       (mu4e-update-index)))"
+                                  postindex)))
+      (do (when (not (= 0 (:exit (sh {:out :inherit :err :inherit} "mu" "index"))))
+            (System/exit 1))
+          (exec postindex)))))
 #+END_SRC
 
 #+NAME: postindex

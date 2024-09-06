@@ -1,3 +1,5 @@
 [user]
 	name = Bert Frees
 	email = bertfrees@gmail.com
+[core]
+	editor = editor

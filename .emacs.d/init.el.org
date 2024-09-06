@@ -79,6 +79,34 @@
 
 #+END_SRC
 
+** Server
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package server
+  :demand t
+  :config
+  (or (server-running-p) (server-start))
+  ;; ask to save buffers and kill frame or Emacs
+  (defun save-buffers-kill-terminal-or-server-with-confirmation (&optional arg)
+    (interactive)
+    (if (not (frame-parameter nil 'client))
+        ;; if the current frame has no client, kill Emacs
+        ;; should normally not happen because we start the server in
+        ;; the background (with --daemon)
+        (save-buffers-kill-emacs arg)
+      (if (and (eq (frame-parameter nil 'client) 'nowait)
+               ;; if it's a "nowait" frame ask whether to kill the frame
+               ;; and keep Emacs running, or kill Emacs
+               (yes-or-no-p "Kill server (y) or kill only this frame (n)?"))
+          (save-buffers-kill-emacs)
+        ;; if emacsclient was started with a list of files to edit,
+        ;; then only ask to save these files
+        (server-save-buffers-kill-terminal arg))))
+  (global-set-key (kbd "C-x C-c") 'save-buffers-kill-terminal-or-server-with-confirmation))
+
+#+END_SRC
+
 ** Git
 
 #+NAME: config
