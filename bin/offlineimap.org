@@ -1,5 +1,77 @@
 * OfflineIMAP
 
+- [X] SSL error: "'int' object is not subscriptable"
+  - https://github.com/OfflineIMAP/offlineimap3/issues/97
+  - try to use latest from source (which includes https://github.com/OfflineIMAP/offlineimap3/pull/98)
+    #+BEGIN_SRC sh
+      cd ~/Dropbox/src && git clone git@github.com:OfflineIMAP/offlineimap3.git
+      brew install keyring
+      PYTHONPATH=/Users/bert/src/offlineimap3:/Users/bert/src/offlineimap3/lib$(python3 -c "import sys; print(':'.join(sys.path))"):/opt/homebrew/Cellar/keyring/25.2.0/libexec/lib/python3.12/site-packages \
+      /opt/homebrew/Cellar/offlineimap/8.0.0_1/libexec/bin/python3 /Users/bert/src/offlineimap3/bin/offlineimap
+    #+END_SRC
+    - better error message: "ssl.SSLError: [X509] PEM lib (_ssl.c:4146)"
+  - [X] try to further debug
+    - https://github.com/python/cpython/blob/56c61cc564eb1d990903cb28a8178674774add2e/Modules/_ssl.c#L4146
+    - pem file was not correctly formatted
+- [X] SSL error: "unable to get local issuer certificate"
+  - same error i get for ~openssl s_client -CAfile ~/.offlineimap/Account-gmail/gmail-cert.pem
+    -connect imap.gmail.com:imaps~
+  - https://superuser.com/questions/1555361/connect-with-openssl-to-google-server-but-unable-to-get-local-issuer-certificate
+  - export "GlobalSign Root CA" from Keychain Access (in PEM format): works!
+  - how come openssl did not look in macOS keychain?
+- [-] try with dummy self-signed certificate
+  - how did i create ca-certificates.crt?
+    - specific to MacBook?
+    - https://stackoverflow.com/a/24694579
+      - https://wiki.mercurial-scm.org/CACertificates#Mac_OS_X_10.6_and_higher
+      #+BEGIN_SRC sh
+        openssl req -new -x509 -extensions v3_ca -keyout /dev/null -out dummycert.pem -days 3650
+        # just fill in anything for the following prompts
+        cp dummycert.pem ~/.offlineimap/Account-gmail/dummy-cert.pem
+      #+END_SRC
+  - same problem: "unable to get local issuer certificate"
+    - does this mean that hack does not work anymore on latest macOS or with latest offlineimap?
+    - or does openssl not look in keychain?
+- [-] error: "Your sqlite is not multithreading safe"
+  - "sqlite threading mode must be 3 as of Python 3.11"
+  - i'm using 3.12.3
+  - change sqlite version?
+  - [X] change python version to 3.10
+    #+BEGIN_SRC sh
+      brew install python@3.10
+      PYTHONPATH=/opt/homebrew/Cellar/offlineimap/8.0.0_1/libexec/lib/python3.12/site-packages$(/opt/homebrew/opt/python@3.10/libexec/bin/python3 -c "import sys; print(':'.join(sys.path))") \
+      /opt/homebrew/opt/python@3.10/libexec/bin/python3 /opt/homebrew/Cellar/offlineimap/8.0.0_1/bin/offlineimap
+    #+END_SRC
+- [X] password not read automatically from ~/.authinfo.gpg
+  - create unencrypted .netrc file
+- [ ] mu4e package can not be installed with emacs package manager
+
+Daemon: see [[file:../Library/LaunchAgents/offlineimap.plist][../Library/LaunchAgents/offlineimap.plist]]
+
+- [ ] generate offlineimap.plist from this org file
+- [ ] check if already running before starting service
+  - not really needed, launchd will not kill and restart process
+  - ~launchctl list | grep offlineimap~
+- [ ] need to run ~launchctl load ~/Library/LaunchAgents/offlineimap.plist~ once?
+  - or every time offlineimap.plist changes?
+  - need to run unload first, otherwise an error is thrown
+    - ~launchctl unload ~/Library/LaunchAgents/offlineimap.plist~
+  - do this automatically when offlineimap not in ~launchctl list~
+- instead of including path environment variable in plist, could set path used by launchd globally
+  - ~sudo launchctl config user path /Users/bert/bin:/usr/bin:/bin:/usr/sbin:/sbin~
+    - but needs password
+    - but needs reboot
+    - but sets path for _all_ users
+  - get current setting: ~launchctl getenv PATH~
+    - or see /private/var/db/com.apple.xpc.launchd/config/user.plist
+  - reset: ~sudo defaults delete /private/var/db/com.apple.xpc.launchd/config/user.plist PathEnvironmentVariable~
+  - default: ~sysctl -n user.cs_path~
+- [ ] if already running, send signal 10 to trigger update
+  - or prompt
+  - get pid with ~launchctl list | grep offlineimap~
+  - then ~kill -10 <pid>~
+- [ ] detect if process gets stuck and automatically restart
+
 #+NAME: offlineimap
 #+BEGIN_SRC clojure :tangle offlineimap :tangle-mode (identity #o755)
 #!/usr/bin/env bb
@@ -16,22 +88,37 @@
       offlineimap (io/file brew-home "bin/offlineimap")
       home-dir (.getParentFile (.getParentFile (io/file *file*)))]
   (when (not (= 0 (:exit (sh {:dir home-dir :out :inherit :err :inherit}
-                             "bin/make" (.getPath offlineimap)
+                             "bin/make" (.getPath offlineimap) ;; FIXME: why not include this with "make offlineimap"?
+                                                               ;; so that offlineimap can be installed lazily by emacs/mu4e?
+                                                               ;; -> note that mu can not be installed lazily because  mu4e
+                                                               ;;    is part of mu
+                                                               ;;    ->  unless i create a separate config file that is autoloaded
+                                                               ;;        on "M-x mu4e" and installs mu lazily (through Makefile)
+                                                               ;;        before loading it
+                                                               ;;        -> see also "defer-file" trick in require-package macro
                                         ".offlineimaprc"
                                         ".netrc"
                                         "gpg"
-                                        "Library/LaunchAgents/offlineimap.plist"
+                                        "Library/LaunchAgents/offlineimap.plist" ;; FIXME: generate
                                         ))))
     (System/exit 1))
   (when (Boolean/parseBoolean (System/getenv "OFFLINEIMAP_RUN_FROM_LAUNCHD"))
+    ;; FIXME: automatically install python@3.10 (or include with "make offlineimap"?)
+    ;; FIXME: locate site-packages directory from offlineimap location (readlink -f /opt/homebrew/bin/offlineimap)
     (apply exec {:extra-env {"PYTHONPATH" "/opt/homebrew/Cellar/offlineimap/8.0.0_1/libexec/lib/python3.12/site-packages"}}
                 "/opt/homebrew/opt/python@3.10/libexec/bin/python3"
                 offlineimap
                 ,*command-line-args*))
   (let [log-file (io/file home-dir ".offlineimap/err.log")]
+    ;;(spit log-file "") ;; FIXME: only do this when not already running
     (when (not (= 0 (:exit (sh {:out :inherit :err :inherit}
                                "launchctl" "start" "offlineimap"))))
       (System/exit 1))
+    ;; FIXME: wrap "screen dialog ..." code in bb utility function?
+    ;; -> see https://www.pixelated-noise.com/blog/2022/12/09/dialog-and-babashka/index.html
+    ;; -> but code might end up being longer this way
+    ;; -> and where to put code?
+    ;;    - could be useful in ~/.make/lib.clj, but would not be usable outside of Makefile
     (exec "bash" "-c"
           (format "maybe_stop() {
                      screen bash -c \" \\
@@ -118,6 +205,8 @@ sslcacertfile = ~/.offlineimap/Account-gmail/globalsign-root-ca.pem
                                      (let ((reset-mu4e-index-updated-hook mu4e-index-updated-hook))
                                        (setq mu4e-index-updated-hook
                                              (cons (lambda ()
+                                                     ;; FIXME: only run notifier when emacs window is not
+                                                     ;; focused or *mu4e-headers* buffer is not shown
                                                      (progn (message (shell-command-to-string \"%s\"))
                                                             (setq mu4e-index-updated-hook
                                                                   reset-mu4e-index-updated-hook)))
@@ -145,6 +234,7 @@ sslcacertfile = ~/.offlineimap/Account-gmail/globalsign-root-ca.pem
   (when (.exists last-sync)
     (let [last-modified (.format (SimpleDateFormat. "yyyy-MM-dd'T'HH:mm:ssX")
                                  (.lastModified last-sync))
+          ;; FIXME: duplication with emacs config
           mailinglists-to-ignore ["accessibility@global.libreoffice.org"
                                   "transition-to-accessible-epub@mail.daisy.org"
                                   "xproc-dev@w3.org"]
@@ -160,6 +250,9 @@ sslcacertfile = ~/.offlineimap/Account-gmail/globalsign-root-ca.pem
               (binding [*out* *err*]
                 (println "New messages:")
                 (println (str/join "\n" new-mail)))
+              ;; FIXME: ensure terminal-notifier is installed (brew install terminal-notifier)
+              ;; FIXME: include link to open the new unread emails?
+              ;; -> see `-execute` switch
               (sh {:out :inherit :err :inherit}
                   "terminal-notifier"
                   "-title" "New mail"
@@ -169,6 +262,7 @@ sslcacertfile = ~/.offlineimap/Account-gmail/globalsign-root-ca.pem
                                                        first
                                                        (.replaceAll " <.*>$" "")))
                                                new-mail)
+                                   ;; FIXME: first sort by number of mails
                                    sender (distinct sender)
                                    sender-count (count sender)
                                    first-sender (take 3 sender)
@@ -191,7 +285,7 @@ sslcacertfile = ~/.offlineimap/Account-gmail/globalsign-root-ca.pem
               ;; update last-sync only when new messages are found, so we can be absolutely sure
               ;; we don't miss any notifications in case of possible synchronization issues
               (sh "touch" (.getAbsolutePath last-sync))))
-        2 (binding [*out* *err*]
-            (println "No new messages"))
+        2 ;(binding [*out* *err*]
+          ;  (println "No new messages"))
         :else (System/exit 1)))))
 #+END_SRC

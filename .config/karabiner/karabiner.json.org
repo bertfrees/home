@@ -46,6 +46,8 @@ manually in iTerm:
 - Under Profiles > Keys
   - Left Option (⌥) Key: Esc+
 
+- [ ] look at "CSI u" mechanism: https://iterm2.com/documentation-csiu.html
+
 The [[file:~/src/github/bertfrees/home/.emacs.d/init.el.org][Emacs]] configuration does the following:
 
 - ^ (⌥ key) is mapped to ~control~

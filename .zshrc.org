@@ -20,8 +20,9 @@ esac
 
 PATH=$BREW_HOME/bin:$PATH
 PATH=$HOME/bin:$PATH
+PATH="/opt/homebrew/opt/gnu-sed/libexec/gnubin:$PATH"
 
-export VISUAL=$HOME/bin/emacs
+export VISUAL=$HOME/bin/emacs # FIXME: don't pass --no-wait?
 export EDITOR=$HOME/bin/editor
 
 export PASSWORD_STORE_DIR=$HOME/src/github/bertfrees/password-store
