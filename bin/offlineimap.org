@@ -241,7 +241,7 @@ sslcacertfile = ~/.offlineimap/Account-gmail/globalsign-root-ca.pem
           mu-find ["mu" "find" "-f" "f\ts" "-s" "date" "flag:unread"
                                                        "AND" "maildir:/all"
                    "AND" (str "date:" last-modified "..")
-                   (map (fn [x] '["AND" "NOT" (str "tag:Mailinglijsten/" x)]) mailinglists-to-ignore)]
+                   (map (fn [x] ["AND" "NOT" (str "tag:Mailinglijsten/" x)]) mailinglists-to-ignore)]
           mu-find (flatten mu-find)
           mu-find (apply sh {:out :string :err :inherit} mu-find)]
       (case (:exit mu-find)
