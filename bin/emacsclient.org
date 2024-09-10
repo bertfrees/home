@@ -13,31 +13,39 @@ See also: [[file:~/src/github/bertfrees/home/.emacs.d/init.el.org][Emacs configu
          '[babashka.fs :refer [cwd]]
          '[clojure.java.io :as io])
 
-(let [server-running #(.exists (io/file (str (System/getProperty "java.io.tmpdir")
-                                             "/emacs"
-                                             (.trim  (:out (sh  {:out :string} "id -u bert")))
-                                             "/server")))
+(let [server-file (io/file (str (System/getProperty "java.io.tmpdir")
+                                "/emacs"
+                                (.trim  (:out (sh  {:out :string} "id -u bert")))
+                                "/server"))
+      server-running #(.exists server-file)
       client "/Applications/Emacs.app/Contents/MacOS/bin/emacsclient"
       client (fn [& args] (:exit (apply sh {:out :inherit :err :inherit} client args)))
       home-dir (.getParentFile (.getParentFile (io/file *file*)))]
   (when (not (server-running))
     (when (not (= 0 (:exit (sh {:dir home-dir :out :inherit :err :inherit}
                                "bin/make" ".emacs.d/init.el"
-                                          ".authinfo.gpg"
-                                          "ssh"
-                                          "git"
-                                          "pass"
-                                          "bitlbee"
-                                          "offlineimap"
-                                          "Dropbox/.apdisk" ;; for org-roam
-                                          ))))
+                               ".authinfo.gpg"
+                               "ssh"
+                               "git"
+                               "pass"
+                               "bitlbee"
+                               "offlineimap"
+                               "Dropbox/.apdisk" ;; for org-roam
+                               ;; FIXME: compilation of vterm depends on cmake (brew install cmake) and glibtool (brew install libtool)
+                               ))))
       (System/exit 1))
-    (when (not (= 0 (:exit (sh {:out :inherit :err :inherit}
-                               "/Applications/Emacs.app/Contents/MacOS/Emacs"
-                               "--daemon"
-                               "--init-directory" (.getAbsolutePath (io/file home-dir ".emacs.d"))
-                               "--chdir" (cwd)))))
-      (System/exit 1))
+    (let [emacs (fn [& args] (:exit (apply sh {:out :inherit :err :inherit}
+                                           "/Applications/Emacs.app/Contents/MacOS/Emacs"
+                                           "--init-directory" (.getAbsolutePath (io/file home-dir ".emacs.d"))
+                                           "--chdir" (cwd)
+                                           args)))]
+      (when (not (some #(and (re-matches #"vterm-[0-9\.]+" (.getName %))
+                             (.exists (io/file % "vterm-module.so")))
+                       (seq (.listFiles (clojure.java.io/file ".emacs.d/elpa")))))
+        (when (not (= 0 (emacs "--eval" "(kill-emacs)")))
+          (System/exit 1)))
+      (when (not (= 0 (emacs "--daemon")))
+        (System/exit 1)))
     (when (not (->> (repeatedly server-running)
                     (take 10)
                     (some true?)))

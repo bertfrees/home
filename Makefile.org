@@ -194,6 +194,8 @@ $(WORGLE_FILES) : % : %.org | bin/worgle
 The following part of the Makefile checks out the Worgle source code from Git and compiles and
 installs it.
 
+# FIXME: change the bootstrap Makefile so that it downloads worgle in src/github
+
 #+NAME: Makefile-build-worgle
 #+BEGIN_SRC makefile
 bin/worgle : bin/% : src/github/paulbatchelor/worgle/%
@@ -316,8 +318,15 @@ $(GITK) :
 #+BEGIN_SRC makefile
 .PHONY : ssh
 ssh : .ssh/config .ssh/gmail_rsa .ssh/gmail_rsa.pub
-	(require '[babashka.process :refer [exec]])                \
-	(exec "ssh-add" "--apple-use-keychain" ".ssh/gmail_rsa")
+	(require '[babashka.process :refer [exec sh]])                            \
+	(when-not (= 0 (:exit (sh "pass -c ssh-rsa/bertfrees@gmail.com")))        \
+	  (System/exit 1))                                                        \
+	(exec {:extra-env {"PASS" (.trim (:out (sh {:in :inherit} "pbpaste")))}}  \
+	      "expect" "-c" "                                                     \
+	spawn ssh-add --apple-use-keychain .ssh/gmail_rsa                         \
+	expect \"Enter passphrase for .ssh/gmail_rsa:\"                           \
+	send \"$$env(PASS)\\n\"                                                   \
+	interact")
 
 .ssh/config .ssh/gmail_rsa .ssh/gmail_rsa.pub : % : Dropbox/config/%
 	(require '[babashka.process :refer [sh]]   \
@@ -343,13 +352,26 @@ $(GPG) :
 	(require '[lib :refer [install]])        \
 	(install {:type :brew :formula "gnupg"})
 
-# FIXME: trust key after having copied it: https://stackoverflow.com/a/34132924
-
 .gnupg/secring.gpg : % : Dropbox/config/%
-	(require '[babashka.process :refer [exec]]  \
-	         '[babashka.fs :as fs])             \
-	(fs/create-dirs "$(dir $@)")                \
-	(exec "cp $< $@")
+	(require '[babashka.process :refer [exec sh]]                            \
+	         '[babashka.fs :as fs]                                           \
+	         '[lib :refer [chmod]])                                          \
+	(fs/create-dirs "$(dir $@)")                                             \
+	(chmod "700" "$(dir $@)")                                                \
+	(when (not (= 0 (:exit (sh {:out :inherit :err :inherit} "cp $< $@"))))  \
+	  (System/exit 1))                                                       \
+	(exec "expect" "-c" "                                                    \
+	spawn gpg --edit-key C38CDB5EF8ED314CA885B4FDAFCE13BF7B247220            \
+	expect \"gpg>\"                                                          \
+	send \"trust\\n\"                                                        \
+	expect \"5 = I trust ultimately\"                                        \
+	expect \"Your decision?\"                                                \
+	send \"5\\n\"                                                            \
+	expect \"Do you really want to set this key to ultimate trust? (y/N)\"   \
+	send \"y\\n\"                                                            \
+	expect \"gpg>\"                                                          \
+	send \"quit\\n\"                                                         \
+	interact")
 
 Dropbox/config/.gnupg/secring.gpg : | Dropbox/.apdisk
 
@@ -391,7 +413,8 @@ PASSWORD_STORE := src/github/bertfrees/password-store
 
 .PHONY : pass password-store
 pass password-store : $(PASS) $(PASSWORD_STORE)/.gpg-id
-$(PASS) : | gnupg
+# bin/editor is required for pass edit
+$(PASS) : | gnupg bin/editor
 	(require '[lib :refer [install]])        \
 	(install {:type :brew :formula "pass"})
 
@@ -607,6 +630,8 @@ $(AMETHYST) :
 #+END_SRC
 
 *** Docker
+
+# FIXME: run `docker login'
 
 #+NAME: Makefile-recipes
 #+BEGIN_SRC makefile
