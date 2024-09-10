@@ -12,7 +12,7 @@ System Preferences need to be changed manually:
 
 [[https://karabiner-elements.pqrs.org/][Karabiner-Elements]] is a tool for keyboard customization. The configuration is as follows:
 
-For Apple internal keyboard (MacBook Pro):
+For Apple internal keyboard (MacBook Pro / MacBook Air):
 
 - left ⌘-TAB is mapped to right ⌘-TAB (key binding for macOS's "switch application")
 - left ⌘-⇧-L is mapped to ⌘-⇧-O (key binding for [[file:~/src/github/bertfrees/home/.amethyst][Amethyst]]'s "expand-main")
@@ -413,6 +413,59 @@ The [[file:~/src/github/bertfrees/home/.emacs.d/init.el.org][Emacs]] configurati
                         "is_keyboard": true,
                         "is_pointing_device": false,
                         "product_id": 611,
+                        "vendor_id": 1452
+                    },
+                    "ignore": false,
+                    "manipulate_caps_lock_led": true,
+                    "mouse_flip_horizontal_wheel": false,
+                    "mouse_flip_vertical_wheel": false,
+                    "mouse_flip_x": false,
+                    "mouse_flip_y": false,
+                    "mouse_swap_wheels": false,
+                    "mouse_swap_xy": false,
+                    "simple_modifications": [
+                        {
+                            "from": {
+                                "key_code": "fn"
+                            },
+                            "to": [
+                                {
+                                    "key_code": "left_command"
+                                }
+                            ]
+                        },
+                        {
+                            "from": {
+                                "key_code": "left_command"
+                            },
+                            "to": [
+                                {
+                                    "key_code": "left_option"
+                                }
+                            ]
+                        },
+                        {
+                            "from": {
+                                "key_code": "left_option"
+                            },
+                            "to": [
+                                {
+                                    "key_code": "left_control"
+                                }
+                            ]
+                        }
+                    ],
+                    "treat_as_built_in_keyboard": false
+                },
+                {
+                    "disable_built_in_keyboard_if_exists": false,
+                    "fn_function_keys": [],
+                    "game_pad_swap_sticks": false,
+                    "identifiers": {
+                        "is_game_pad": false,
+                        "is_keyboard": true,
+                        "is_pointing_device": false,
+                        "product_id": 641,
                         "vendor_id": 1452
                     },
                     "ignore": false,
