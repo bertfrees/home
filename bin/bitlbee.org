@@ -24,9 +24,9 @@ Configuration:
 
 - [X] connect with slack
   - run ~plugins~ in &bitlbee channel: should list slack
-  - run ~account add slack bertfrees@gmail.com%daisy-dev.slack.com DCrLOJS4jR~
+  - run ~account add slack bertfrees@gmail.com%daisy-dev.slack.com PASSWORD~
     - ~account 0 on~ to login (happens automatically on ~identify~)
-    - if this doesn't work: ~account add slack U064KJ0HK%daisy-dev.slack.com DCrLOJS4jR~
+    - if this doesn't work: ~account add slack U064KJ0HK%daisy-dev.slack.com PASSWORD~
       - see https://github.com/dylex/slack-libpurple?tab=readme-ov-file#authentication
   - test with ~/query slackbot~
   - ~chat add slack #pipeline2~
