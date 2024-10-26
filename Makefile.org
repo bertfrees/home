@@ -444,10 +444,29 @@ $(DROPBOX) :
 	(install {:type :brew :cask true :formula "dropbox"})
 
 Dropbox/.apdisk : | $(DROPBOX) $(ENCFS)
-	(require '[babashka.process :refer [exec]]                                                       \
-	         '[babashka.fs :as fs])                                                                  \
-	(fs/create-dirs "$(dir $(dir $@))")                                                              \
-	(exec "$(ENCFS) $(CURDIR)/._dropbox/Dropbox/.encrypted $(CURDIR)/$(dir $@) -o volname=Dropbox")
+	(require '[babashka.process :refer [exec sh]]                               \
+	         '[babashka.fs :as fs]                                              \
+	         '[clojure.java.io :as io]                                          \
+	         '[clojure.string :as str])                                         \
+	(fs/create-dirs "$(dir $(dir $@))")                                         \
+	(let [encfs-cmd ["$(ENCFS)"                                                 \
+	                 "$(CURDIR)/._dropbox/Dropbox/.encrypted"                   \
+	                 "$(CURDIR)/$(dir $@)"                                      \
+	                 "-o"                                                       \
+	                 "volname=Dropbox"]]                                        \
+	  (if (not (and (.exists (io/file "$(PASSWORD_STORE)/.gpg-id"))             \
+	                (.exists (io/file ".gnupg/secring.gpg"))))                  \
+	    (apply exec encfs-cmd))                                                 \
+	  (when-not (= 0 (:exit (sh "pass -c encfs")))                              \
+	    (System/exit 1))                                                        \
+	  (exec {:extra-env {"PASS" (.trim (:out (sh {:in :inherit} "pbpaste")))}}  \
+	        "expect" "-c"                                                       \
+	        (format "                                                           \
+	spawn %s                                                                    \
+	expect \"EncFS Password:\"                                                  \
+	send \"$$env(PASS)\\n\"                                                     \
+	interact"                                                                   \
+	                  (str/join " " encfs-cmd))))
 
 #+END_SRC
 
