@@ -17,14 +17,26 @@ For Apple internal keyboard (MacBook Pro / MacBook Air):
 - left ⌘-TAB is mapped to right ⌘-TAB (key binding for macOS's "switch application")
 - left ⌘-⇧-L is mapped to ⌘-⇧-O (key binding for [[file:~/src/github/bertfrees/home/.amethyst][Amethyst]]'s "expand-main")
 - left ⌘ is mapped to left ⌥
-- left ⌥ is mapped to left ^
+- left ⌥ is mapped to left ctrl
 - fn is mapped to left ⌘
 
-For DELL keyboard (Mac Studio):
+For DELL keyboard (Mac Studio)
 
 - left Alt-TAB is mapped to right ⌘-TAB (key binding for macOS's "switch application")
-- left ^ is mapped to left ⌘
-- left ⌘ (Windows key) is mapped to left ^
+- left Ctrl is mapped to left ⌘
+- left Windows key is mapped to left Ctrl
+- right Ctrl is mapped to fn
+
+For KBPV6000 keyboard (Mac Studio):
+
+- left Alt-TAB is mapped to right ⌘-TAB (key binding for macOS's "switch application")
+- left Ctrl is mapped to left ⌘
+- left ⌘ is mapped to right ⌘
+
+Note that Esc gives you the less-than sign, ⇧-Esc the greater-than sign, right Alt-\ the at sign,
+and right Alt-⇧-\ the hash sign.
+
+KBVV6000's DIP switches must be set to: ON-OFF-OFF-OFF-ON-ON
 
 Some Karabiner-Element rules apply only within applications other than iTerm2 and Emacs. These rules
 are for mimicking Emacs/iTerm key bindings in those applications:
@@ -50,9 +62,9 @@ manually in iTerm:
 
 The [[file:~/src/github/bertfrees/home/.emacs.d/init.el.org][Emacs]] configuration does the following:
 
-- ^ (⌥ key) is mapped to ~control~
-- left ⌘ (fn key) is mapped to ~control~
-- left ⌥ (left ⌘ key) is mapped to ~meta~
+- ^ (⌥ key on MacBook) is mapped to ~control~
+- left ⌘ (fn key on MacBook) is mapped to ~control~
+- left ⌥ (left ⌘ key on MacBook) is mapped to ~meta~
 - right ⌘ is mapped to ~super~
 - fn and right ⌥ are ignored
 
@@ -596,6 +608,23 @@ The [[file:~/src/github/bertfrees/home/.emacs.d/init.el.org][Emacs]] configurati
                     "mouse_swap_xy": false,
                     "simple_modifications": [],
                     "treat_as_built_in_keyboard": false
+                },
+                {
+                    "identifiers": {
+                        "is_keyboard": true,
+                        "product_id": 274,
+                        "vendor_id": 1241
+                    },
+                    "simple_modifications": [
+                        {
+                            "from": { "key_code": "left_control" },
+                            "to": [{ "key_code": "left_command" }]
+                        },
+                        {
+                            "from": { "key_code": "left_command" },
+                            "to": [{ "key_code": "right_command" }]
+                        }
+                    ]
                 }
             ],
             "fn_function_keys": [
