@@ -1,9 +1,10 @@
 {
+    "For more information see": "https://github.com/ianyh/Amethyst/blob/development/docs/configuration-files.md",
+
     "layouts": [
-        "tall",
-        "fullscreen",
-        "two-pane",
-        "floating"
+        "middle-wide",
+        "widescreen-tall",
+		"fullscreen"
     ],
 
     "Valid modifiers are": [
@@ -127,7 +128,7 @@
     },
     "decrease-main": {
         "mod": "mod1",
-        "key": "."
+        "key": ";"
     },
     "focus-ccw": {
         "mod": "mod1",
@@ -214,5 +215,6 @@
     "mouse-follows-focus": true,
     "focus-follows-mouse": false,
     "enables-layout-hud": true,
-    "enables-layout-hud-on-space-change": true
+    "enables-layout-hud-on-space-change": true,
+	"window-resize-step": 1
 }

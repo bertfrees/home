@@ -292,6 +292,8 @@ WORGLE_FILES += .bashrc
 
 *** Git
 
+- [ ] install git from Howebrew in order to get "git instaweb"
+
 #+NAME: Makefile-recipes
 #+BEGIN_SRC makefile
 .PHONY : git
@@ -310,6 +312,7 @@ $(GITK) :
 	(require '[lib :refer [install]])           \
 	(install {:type :brew :formula "git-gui"})
 
+WORGLE_FILES += bin/git-stash-rename
 #+END_SRC
 
 *** SSH
@@ -394,6 +397,7 @@ bin/gpg2 : | $(GPG)
 
 #+NAME: Makefile-recipes
 #+BEGIN_SRC makefile
+# FIXME: why did this happen?
 ENCFS := $(BREW_HOME)/bin/encfs
 .PHONY : encfs
 encfs : $(ENCFS)
@@ -772,6 +776,8 @@ go-dev :
 #+END_SRC
 
 ** Putting it all together
+
+- [ ] FIXME: use noweb-ref (https://orgmode.org/manual/Noweb-Reference-Syntax.html)
 
 #+NAME: Makefile
 #+BEGIN_SRC makefile :tangle Makefile

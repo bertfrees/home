@@ -46,7 +46,9 @@
   (push '(" *undo-tree*" :width 0.2 :position right) popwin:special-display-config)
   :bind (:map undo-tree-map
          ("C-z" . undo-tree-undo))
-  :config (setq undo-tree-auto-save-history nil))
+  :config (setq undo-tree-auto-save-history nil
+                undo-tree-visualizer-timestamps nil
+                undo-tree-visualizer-diff t))
 
 (global-unset-key (kbd "C-z"))
 
@@ -346,6 +348,7 @@
   (magit-status-expand-stashes nil)
   (magit-repository-directories '(("/Users/bert/src" . 1)
                                   ("/Users/bert/src/github" . 2)
+                                  ("/Users/bert/src/bitbucket" . 2)
                                   ("/Users/bert/.emacs.d/straight/repos" . 1)))
   :config
   (custom-set-faces
@@ -374,7 +377,23 @@
             (string= string "Enter passphrase for key '/Users/bert/.ssh/gmail_rsa': "))
         (progn
           (process-send-string proc (concat (password-store-get "ssh-rsa/bertfrees@gmail.com") "\n")))
-      ad-do-it)))
+      ad-do-it))
+  (magit-wip-mode)
+  (add-hook 'magit-section-movement-hook
+            'magit-log-maybe-update-blob-buffer)
+  (defun magit-stash-rename (&optional stash desc)
+    (interactive)
+    (let* ((stash (or stash
+                      (magit-read-stash "Rename stash (number): ")))
+           (desc (read-string "New description: "
+                              (or desc
+                                  (substring
+                                   (cl-find-if
+                                    (apply-partially 'string-prefix-p (concat stash ":"))
+                                    (magit-git-lines "stash" "list"))
+                                   (+ 2 (length stash)))))))
+      (magit-run-git "stash-rename" stash desc)))
+  )
 
 ;; FIXME: synchronization with Github is not good
 ;; -> https://github.com/magit/forge/issues/367
@@ -556,6 +575,8 @@
   - https://github.com/yibie/org-supertag
   - can work with org-roam
   - db-based (uses database that can not simply be generated from the text files)
+- [ ] implement reminders via desktop notifications
+  - https://www.youtube.com/watch?v=wKTKmE1wLyw
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
@@ -589,6 +610,7 @@
             ,(expand-file-name "~/Dropbox/org/roam/daisy_pipeline/todo.org")
             ,(expand-file-name "~/Dropbox/org/roam/sbs/todo.org")
             ;;,(expand-file-name "~/Dropbox/org/roam/atelier_in_beeld.org")
+            ;; ,(expand-file-name "~/Dropbox/org/roam/luister_en_speur_naar_stadse_natuur.org")
             )
         org-startup-folded 'content
         org-cycle-include-plain-lists 'integrate
@@ -630,7 +652,7 @@
         org-agenda-span 'week
         org-agenda-log-mode-items '(closed state)
         org-agenda-clockreport-parameter-plist '(:link t :maxlevel 2)
-        org-agenda-clock-consistency-checks
+        org-agenda-clock-consistency-checks ;; werken niet meer
           '(:max-duration "10:00"
             :min-duration 0
             :max-gap "0:15"
@@ -649,6 +671,61 @@
                           (org-agenda-prefix-format " %i %?-12t% s")
                           (org-agenda-remove-tags t)))
               nil))))
+  ;; appointment reminders
+  (add-hook 'org-agenda-finalize-hook
+            (lambda () (org-agenda-to-appt)))
+  (org-babel-do-load-languages
+    'org-babel-load-languages
+    '((emacs-lisp . t)
+      (clojure . t)
+      (shell . t)
+      (dot . t) ;; brew install graphviz
+      ;;(ledger . t)
+      ))
+  ;; this is a hack to evaluate code blocks using a simple Clojure CLI
+  (setq org-babel-clojure-backend 'babashka
+        ob-clojure-babashka-command "/Users/bert/bin/clojure")
+  ;; FIXME: modify org-babel-expand-body:clojure so that it doesn't remove comments
+  ;; (it does so because comments supposedly break let bindings)
+  (defun org-babel-expand-body:clojure (body params)
+    (let* ((vars (org-babel--get-vars params))
+           (backend-override (cdr (assq :backend params)))
+           (org-babel-clojure-backend
+            (cond
+             (backend-override (intern backend-override))
+             (org-babel-clojure-backend org-babel-clojure-backend)
+             (t (user-error "You need to customize `org-babel-clojure-backend'
+or set the `:backend' header argument"))))
+           (ns (or (cdr (assq :ns params))
+                   (if (eq org-babel-clojure-backend 'cider)
+                       (or cider-buffer-ns
+                           (let ((repl-buf (cider-current-connection)))
+                             (and repl-buf (buffer-local-value
+                                            'cider-buffer-ns repl-buf))))
+                     org-babel-clojure-default-ns)))
+           (result-params (cdr (assq :result-params params)))
+           (print-level nil)
+           (print-length nil)
+           ;; Remove comments, they break (let [...] ...) bindings
+           ;;(body (replace-regexp-in-string "^[      ]*;+.*$" "" body))
+           (body (org-trim
+                  (concat
+                   ;; Source block specified namespace :ns.
+                   (and (cdr (assq :ns params)) (format "(ns %s)\n" ns))
+                   ;; Variables binding.
+                   (if (null vars) (org-trim body)
+                     (format "(let [%s]\n%s)"
+                             (mapconcat
+                              (lambda (var)
+                                (format "%S '%S" (car var) (cdr var)))
+                              vars
+                              "\n      ")
+                             body))))))
+      (if (or (member "code" result-params)
+              (member "pp" result-params))
+          (format "(clojure.pprint/pprint (do %s))" body)
+        body)))
+  (add-to-list 'org-src-lang-modes '("dot" . graphviz-dot))
   (defun org-github-issue-link-open-with-forge (orig-fun &rest args)
     (if (not current-prefix-arg)
         (apply orig-fun args)
@@ -673,9 +750,51 @@
                                     (apply 'buffer-substring
                                            (flatten-tree (org-in-regexp org-ts-regexp3))))
                                    t))))
+   ;; export agendas to ics
+    (defun export-agenda-on-save ()
+      (interactive)
+      (when (and (eq major-mode 'org-mode)
+                 (string= (buffer-file-name) "/Users/bert/Dropbox/org/roam/agenda_hoveniersstraat_14.org"))
+        (let ((outfile "/Users/bert/Dropbox/public/agenda_hoveniersstraat_14.ics"))
+          (org-export-to-file 'icalendar outfile
+            nil nil nil nil
+            '(:ascii-charset utf-8 :ascii-links-to-notes nil)
+            (lambda (file)
+              (run-hook-with-args 'org-icalendar-after-save-hook file) nil)))))
+    (add-hook 'after-save-hook 'export-agenda-on-save)
+
   (use-package org-indent
     :config
-    (set-face-attribute 'org-indent nil ':background "#e0f4ff")))
+    (set-face-attribute 'org-indent nil ':background "#e0f4ff"))
+  ;; https://github.com/jkitchin/ox-clip
+  ;; - FIXME: retain styles
+  ;; - FIXME: copy to clipboard does not work
+  ;; => alternatives
+  ;;    - https://github.com/Lindydancer/highlight2clipboard
+  ;;    - https://speechcode.com/blog/org-to-clipboard
+  ;;    - https://www.reddit.com/r/orgmode/comments/ge24ny/orgtoclipboard/
+  ;;    - (funcall interprogram-cut-function (org-html-htmlize-region-for-paste (region-beginning) (region-end)))
+  ;;      - does not include collapsed content
+  ;;      - FIXME: this uses htmlize, not org export: may be less useful for pasting in email
+  ;;      - FIXME: will include selection highlighting if region is selected
+  ;;      - FIXME: can not paste directly, need to first paste in html file, open html file, and copy
+  ;;        - use osascript to copy as HTML?
+  ;;          - but will not work with mosh
+  (use-package ox-clip
+    :ensure t
+    :commands (ox-clip-formatted-copy))
+  ;; enabled old easy template system
+  ;; <s = SRC
+  ;; <e = EXAMPLE
+  ;; <q = QUOTE
+  ;; (the new preferred method to add a src, example and quote is through org-insert-structure-template, bound to C-c C-,)
+  ;; first edit org-structure-template-alist in order to make the templates uppercase
+  (setq org-structure-template-alist nil) ;; FIXME: this is a workaround for "Warning (emacs): Duplicated keys in
+                                          ;; ‘org-structure-template-alist’ and ‘org-tempo-keywords-alist’"
+  (add-to-list 'org-structure-template-alist '("s" . "SRC"))
+  (add-to-list 'org-structure-template-alist '("e" . "EXAMPLE"))
+  (add-to-list 'org-structure-template-alist '("q" . "QUOTE"))
+  (require 'org-tempo))
 
 ;(use-package emacsql-sqlite-builtin
 ;  :ensure t)
@@ -717,6 +836,7 @@
         org-roam-capture-templates
         '(("d" "default" plain
            "%?"
+           ;; FIXME: how to add :ROAM_REFS: in property drawer?
            :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+FILETAGS:\n#+TITLE: ${title}\n")
            :unnarrowed t)))
   ;; FIXME: is this needed and why?
@@ -848,9 +968,160 @@ Function to automatically make nodes of headings that are being linked to:
 
 #+END_SRC
 
+Function to automatically strip hard indentation:
+
+#+BEGIN_SRC emacs-lisp
+;; make sure that the the current section heading is visible, as well as the
+;; next (if this is not the case the script will have no effect)
+(defun org-remove-indentation-from-current-section ()
+  (interactive)
+  (save-excursion
+    (if (org-at-heading-p)
+        (beginning-of-line)
+      (org-previous-visible-heading 1))
+    (end-of-line)
+    (forward-char)
+    (when (not (org-at-heading-p))
+      (cl-flet ((unindent (start end)
+                  (goto-char start)
+                  (let ((content (buffer-substring (point) end)))
+                    (delete-region (point) end)
+                    (insert (org-remove-indentation content)))))
+        (while (let* ((element (org-element-at-point))
+                      (type (org-element-type element))
+                      (drawer-name (org-element-property :drawer-name element)))
+                 (cond ((string= type "property-drawer")
+                        (progn
+                          (save-excursion
+                            (unindent (point) (org-element-property :end element)))
+                          (goto-char (org-element-property :end (org-element-at-point)))
+                          t))
+                       ((and (string= type "drawer")
+                             (string= drawer-name "LOGBOOK"))
+                        (progn
+                          (save-excursion
+                            (unindent (point) (org-element-property :end element)))
+                          (goto-char (org-element-property :end (org-element-at-point)))
+                          t))
+                       (t nil))))
+        (let ((start-of-next-section (save-excursion
+                                       (org-next-visible-heading 1)
+                                       (point))))
+          (unindent (point) start-of-next-section))))))
+
+(global-set-key (kbd "C-x <") 'org-remove-indentation-from-current-section)
+
+#+END_SRC
+
+Below is a function to extract a node into a separate file. The contents are replaced by a link to
+the new file. In case a logbook is present, it is kept in the original section. If desired, the
+original section may be removed manually.
+
+#+BEGIN_SRC emacs-lisp
+
+(defun org-roam-extract-subtree-to-relative-file (orig-fun &rest args)
+  (when-let ((id (or (org-id-get)
+                     (progn (message "Not a node") nil))))
+    (when-let ((node (or (org-roam-node-from-id id)
+                         (progn (message "Not a node") nil))))
+      (if (org-at-heading-p)
+          (beginning-of-line)
+        (org-previous-visible-heading 1))
+      (let* ((begin (point))
+             (headline (org-element-at-point))
+             (end (org-element-property :end headline))
+             (level (org-element-property :level headline))
+             (todo (org-element-property :todo-keyword headline))
+             (title (org-element-property :raw-value headline))
+             (orig-content (buffer-substring begin end))
+             (new-content
+              (let ((new-content-buffer (generate-new-buffer " *temp*" t)))
+                (unwind-protect
+                    (progn
+                      (with-current-buffer new-content-buffer
+                        (dotimes (_ level) (insert "*"))
+                        (insert " ")
+                        (when todo
+                          (insert (substring-no-properties todo) " "))
+                        (insert "[[id:" id "][" title "]]\n"))
+                      (end-of-line)
+                      (forward-char)
+                      (while (let* ((element (org-element-at-point))
+                                    (type (org-element-type element)))
+                               (cond (;; stop at the next headline that is not a subsection
+                                      (and (string= type "headline")
+                                           (not (> (org-element-property :level element) level)))
+                                      nil)
+                                     (;; keep deadline and logbook only in original
+                                      (or (and (string= type "drawer")
+                                               (string= (org-element-property :drawer-name element)
+                                                        "LOGBOOK"))
+                                          (string= type "planning"))
+                                      (let* ((begin (point))
+                                             (end (org-element-property :end element))
+                                             (content (buffer-substring begin end)))
+                                        (delete-region begin end)
+                                        (with-current-buffer new-content-buffer
+                                          (insert content))
+                                        t))
+                                     (;; keep sub-headlines in original
+                                      (string= type "headline")
+                                      (progn
+                                        (let ((id (org-id-get)))
+                                          (with-current-buffer new-content-buffer
+                                            (dotimes (_ (org-element-property :level element)) (insert "*"))
+                                            (insert " ")
+                                            (when-let ((todo (org-element-property :todo-keyword element)))
+                                              (insert (substring-no-properties todo) " "))
+                                            (when id
+                                              (insert "[[id:" id "]["))
+                                            (insert (org-element-property :title element))
+                                            (when id
+                                              (insert "]]"))
+                                            (insert "\n")))
+                                        (end-of-line)
+                                        (forward-char)
+                                        t))
+                                     (;; keep everything else only in file
+                                      (string= type "property-drawer")
+                                      (progn
+                                        (goto-char (org-element-property :end element))
+                                        t))
+                                     (t (condition-case err
+                                            (org-forward-element)
+                                          (user-error nil))))))
+                      (with-current-buffer new-content-buffer
+                        (buffer-string)))
+                  (and (buffer-name new-content-buffer)
+                       (kill-buffer new-content-buffer))))))
+        (goto-char begin)
+        (let ((inhibit-quit t))
+          (unless (with-local-quit
+                    (let* ((current-dir (file-name-directory (buffer-file-name)))
+                           (org-roam-directory current-dir))
+                      (apply orig-fun args)
+                      t))
+            (setq quit-flag nil)))
+        (if (not (string= id (org-id-get)))
+            ;; when the subtree was extracted, insert the new content
+            (progn
+              (insert new-content)
+              (org-roam-node-visit (org-roam-node-from-id id) t)
+              (beginning-of-buffer)
+              (re-search-forward "#\\+title:")
+              (beginning-of-line)
+              (insert "#+FILETAGS:\n")
+              (backward-char))
+          ;; otherwise restore the original content
+          (delete-region (point) (org-element-property :end (org-element-at-point)))
+          (insert orig-content))))))
+
+(advice-add 'org-roam-extract-subtree :around #'org-roam-extract-subtree-to-relative-file)
+(global-set-key (kbd "C-c n x") 'org-roam-extract-subtree)
+
+#+END_SRC
+
 - [ ] Function to replace a node with another one (let all nodes that point to it, point to the other node)
-- [ ] Function to remove hard indentation
-- [ ] Function to extract a node into a separate file (but without clock entries, agenda items, deadlines)
 - [ ] Function to capture a Github issue as a note
 - [ ] Replace all "gh:" links with real links to Github
   - but first make sure that I can still do what I used to be able to with the gh: links (see MacBook)
@@ -1196,20 +1467,24 @@ save it in `ffap-file-at-point-line-number' variable."
 
 ** Cut & paste
 
+- try [[https://github.com/spudlyo/clipetty][clipetty]] instead?
+
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
 (defun interprogram-killring-peek ()
-  (shell-command-to-string "/usr/bin/pbpaste"))
+  (let ((tramp-mode nil)
+        (default-directory "~"))
+    (shell-command-to-string "/usr/bin/pbpaste")))
 
 (defun interprogram-killring-push (text &optional push)
   (let ((process-connection-type nil))
     (let ((proc (start-process "killring push" "*Messages*" "/usr/bin/pbcopy")))
-  (process-send-string proc text)
-  (process-send-eof proc))))
+      (process-send-string proc text)
+      (process-send-eof proc))))
 
 (setq save-interprogram-paste-before-kill t
-  interprogram-cut-function 'interprogram-killring-push
-  interprogram-paste-function 'interprogram-killring-peek)
+      interprogram-cut-function 'interprogram-killring-push
+      interprogram-paste-function 'interprogram-killring-peek)
 
 #+END_SRC
 
@@ -1281,7 +1556,8 @@ save it in `ffap-file-at-point-line-number' variable."
          ("/"            . mu4e-search-narrow-with-auto-complete)
          )
   :config
-  (setq mu4e-get-mail-command "offlineimap"
+  (setq mu4e-mu-binary "/opt/homebrew/Cellar/mu/1.12.4/bin/mu"
+        mu4e-get-mail-command "offlineimap"
         mu4e~update-buffer-height 10
         mu4e-hide-index-messages t
         mu4e-action-tags-header "X-Keywords"
@@ -1305,6 +1581,7 @@ save it in `ffap-file-at-point-line-number' variable."
                                    "transition-to-accessible-epub@mail.daisy.org"
                                    "xproc-dev@w3.org"))
   (setq gmail-labels '("Mailboxen"              ("bert.frees@sbs.ch"                             "#00BFFF"
+                                                   "bfrees@daisy.org"                              "#00BFFF"
                                                    "bert@sonuwe.com"                               "#C39EF0"
                                                    "bertfrees@gmail.com"                           "#FFAC26"
                                                    "bertfrees@hotmail.com"                         "#FF6EC3"
@@ -1738,6 +2015,7 @@ see also [[file:~/bin/bitlbee.org::*Bitlbee][Bitlbee]]
 ;; FIXME: may need to modify this a bit to get less (or more) notifications
 ;;        also to get sound
 ;;        and in order to install terminal-notifier lazily
+;; FIXME: see also https://github.com/sinic/ednc (Emacs desktop notification center)
 (use-package erc-terminal-notifier
   :ensure t
   :init
@@ -1821,6 +2099,16 @@ See https://github.com/skeeto/elfeed.
                    "-sound" "default"
                    "-sender" "com.apple.mail"))
   (add-hook 'elfeed-new-entry-hook #'elfeed-desktop-notifications))
+
+#+END_SRC
+
+** Etherpad
+
+- [-] connect through [[https://github.com/ether/etherpad-cli-client][etherpad-cli]] and vterm?
+  - [X] sudo npm install -g etherpad-cli-client
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
 
 #+END_SRC
 
@@ -2163,8 +2451,8 @@ https://github.com/emacs-lsp/lsp-java:
       (let* ((buf (current-buffer))
              (vterm-buffer
               (or (and (buffer-live-p clojure-vterm-execute-buffer) clojure-vterm-execute-buffer)
-                  (set (make-local-variable 'vterm-execute-buffer)
-                       (let ((vterm-shell "bb"))
+                  (set (make-local-variable 'clojure-vterm-execute-buffer)
+                       (let ((vterm-shell "clojure")) ;; or "bb"
                          (vterm))))))
         (display-buffer vterm-buffer t)
         (switch-to-buffer-other-window vterm-buffer)

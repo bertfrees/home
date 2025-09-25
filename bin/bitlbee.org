@@ -20,6 +20,8 @@
     (apply exec bitlbee "-d" (.getAbsolutePath (io/file home-dir ".config/bitlbee")) ,*command-line-args*)))
 #+END_SRC
 
+See also [[file:~/Makefile.org::*Bitlbee][Bitlbee]] in ~/Makefile
+
 Configuration:
 
 - [X] connect with slack
@@ -34,9 +36,38 @@ Configuration:
   - ~channel pipeline2 set auto_join true~
 - [-] connect with facebook (does not work!)
   - https://wiki.bitlbee.org/HowtoFacebookMQTT
-  - ~plugin~ in @bitlbee should list facebook
+  - ~plugin~ in &bitlbee should list facebook
   - account add facebook bertfrees@hotmail.com 4Xz0jhK2pr
   - (account facebook set token <token from Python script above>)
     - only if 2FA is activated, but does not seem to be the case
   - account facebook on
 - [X] ~register <password>~
+- [ ] connect with discord
+  - https://github.com/sm00th/bitlbee-discord
+  - https://aliquote.org/post/discord-bitlbee/
+  - [ ] install with [[file:~/Makefile.org::*Bitlbee][~/Makefile]]
+- [ ] connect with matrix
+  - solutions that replace bitlbee
+    - https://git.sr.ht/~emerson/reflectionircd
+    - https://github.com/progval/matrix2051
+    - https://github.com/martinetd/matrirc
+  - no solution with bitblee?
+
+* TODO switch to Matrix instead!
+
+Benefits:
+
+- Matrix is more modern, has an iPhone client, etc.
+- Matrix provides unlimited chat history
+- Matrix has bridges to all other chat services, bitlbee hasn't
+  - this includes IRC
+    - https://matrix.org/ecosystem/bridges/irc/
+    - connecting to IRC through Matrix can replace a IRC bouncer
+      - relevant for [[file:~/Dropbox/org/pipeline/todo.org::*action items tactile reading conference amsterdam][liblouis chat bot]]
+- Matrix has a nice Emacs client
+  - https://github.com/alphapapa/ement.el
+- Matrix can be used from any IRC client (see above)
+
+Downsides:
+
+- Need to self-host a server in order to get bridges
