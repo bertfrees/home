@@ -3,11 +3,13 @@
 /._dropbox/
 /.bash_history
 /.bashrc
+/.bb_history
 /.cache/mu/
 /.cache/tooling/gradle/
 /.config/bitlbee/purple/
 /.config/iterm2/
 /.config/git/gitk
+/.config/gtk-2.0/
 /.config/htop/htoprc
 /.config/karabiner/automatic_backups/
 /.config/karabiner/karabiner.json
@@ -16,6 +18,8 @@
 /.CFUserTextEncoding
 /.emacs.d/.org-id-locations
 /.emacs.d/*.elc
+/.emacs.d/bookmarks
+/.emacs.d/elfeed/
 /.emacs.d/elpa/
 /.emacs.d/forge-database.sqlite
 /.emacs.d/ido.last
@@ -27,10 +31,12 @@
 /.emacs.d/straight/repos/
 /.emacs.d/transient/
 /.emacs.d/url/cookies
+/.gnupg/.#*
 /.gnupg/.gpg-v21-migrated
 /.gnupg/common.conf
-/.gnupg/private-keys-v1.d/
+/.gnupg/pubring.kbx
 /.gnupg/public-keys.d/
+/.gnupg/private-keys-v1.d/
 /.gnupg/random_seed
 /.gnupg/secring.gpg
 /.gnupg/trustdb.gpg
@@ -42,7 +48,9 @@
 /.gradle/notifications
 /.gradle/workers
 /.gradle/wrapper
+/.lesshst
 /.local/share/karabiner/
+/.local/share/recently-used.xbel
 /.m2/
 /.make/bb.edn
 /.make/lib.clj
@@ -62,6 +70,7 @@
 /.offlineimaprc
 /.python_history
 /.ssh/
+/.viminfo
 /.zcompcache/
 /.zcompdump
 /.zsh_history
@@ -83,6 +92,8 @@
 /Downloads/
 /Dropbox/
 /Library/.localized
+/Library/Accessibility/
+/Library/Application Scripts/
 /Library/Application Support/
 /Library/Assistant/
 /Library/Caches/
@@ -102,10 +113,13 @@
 /Library/Group Containers/
 /Library/HTTPStorages/
 /Library/Input Methods/
+/Library/Keyboard/
 /Library/KeyboardServices/
 /Library/Keychains/
 /Library/LanguageModeling/
 /Library/LaunchAgents/com.dropbox.DropboxMacUpdate.agent.plist
+/Library/LaunchAgents/com.dropbox.DropboxUpdater.wake.plist
+/Library/LaunchAgents/com.dropbox.dropboxmacupdate.xpcservice.plist
 /Library/LaunchAgents/com.google.GoogleUpdater.wake.plist
 /Library/LaunchAgents/com.google.keystone.agent.plist
 /Library/LaunchAgents/com.google.keystone.xpcservice.plist
@@ -116,14 +130,23 @@
 /Library/Preferences/
 /Library/Python/
 /Library/QuickLook/
+/Library/Reminders/
+/Library/SafariSafeBrowsing/
 /Library/Saved Application State/
 /Library/Spelling/
+/Library/Spotlight/
 /Library/Translation/
 /Library/UnifiedAssetFramework/
 /Library/WebKit/
+/Library/com.apple.AppleMediaServices/
+/Library/com.apple.WatchListKit/
+/Library/com.apple.appleaccountd/
+/Library/com.apple.bluetoothuser/
 /Library/com.apple.bluetooth.services.cloud/
 /Library/com.apple.iTunesCloud/
 /Library/com.apple.icloud.searchpartyd/
+/Library/com.apple.internal.ck/
+/Library/homeenergyd/
 /Library/studentd/
 /Mail/
 /Movies/

@@ -760,6 +760,17 @@ c-dev:
 
 #+END_SRC
 
+*** Go development
+
+#+NAME: Makefile-recipes
+#+BEGIN_SRC makefile
+.PHONY : go-dev
+go-dev :
+	(require '[lib :refer [install]])          \
+	(install {:type :brew :formula "golang"})
+
+#+END_SRC
+
 ** Putting it all together
 
 #+NAME: Makefile

@@ -430,7 +430,7 @@
     (("C-c C-o" . markdown-follow-link-at-point))
     :config
     (defun markdown-browse-github-issue-url-with-forge (orig-fun &rest args)
-      (if current-prefix-arg
+      (if (not current-prefix-arg)
           (apply orig-fun args)
         (let ((url (car args)))
           (or (browse-github-issue-url-with-forge url)
@@ -506,6 +506,29 @@
 
 ** Org-mode
 
+- [-] org-roam-ui: how to automatically find possible missings links?
+  - nodes that are not directly related but also not completely unrelated will automatically be
+    shown near each other
+  - show nodes in graph during a node search?
+    - e.g. would show nodes that have a common tag (even without actual links between the nodes)
+    - by creating local graph and add nodes to it?
+      #+BEGIN_SRC emacs-lisp
+      (org-roam-ui-node-local "C1964180-E4BF-4D97-87E1-90E47274BFAA")
+      (org-roam-ui-add-to-local-graph "C1964180-E4BF-4D97-87E1-90E47274BFAA")
+      (org-roam-ui-add-to-local-graph "1F5CB692-216B-4F24-9897-1749442FDA15")
+      #+END_SRC
+      - makes nodes visible but nodes that are not related will not be shown close to each other:
+        this is because all nodes are still connected via invisible edges and nodes
+  - [X] follow selected node during a node search
+    - could maybe be achieved by showing the buffer of the current selection during a node search
+      - [X] use consult's live preview
+      - unfortunately live preview is not followed
+        - org-roam-ui--update-current-node uses org-roam-buffer-p and org-roam-id-at-point but the
+          cursor is in the mini-buffer, not in the org buffer
+        - [X] advise consult-org-roam--node-preview
+- [ ] try org-ql
+  - https://github.com/alphapapa/org-ql
+- [ ] try org-roam-ql
 - [-] try org-sidebar
   - https://github.com/alphapapa/org-sidebar
   - https://www.reddit.com/r/emacs/comments/jtydiy/who_needs_github_to_manage_a_project_when_you/
@@ -516,10 +539,23 @@
     - how to not expand everything in navigation pane?
     - annoying that a new buffer is created for every section (narrowed)
     - does it make things very slow?
-- [ ] try org-ql
-  - https://github.com/alphapapa/org-ql
+- [ ] try org-rifle
+  - also searches body
+  - only searches agenda files or current org buffers
+  - works best with few files with many nodes
 - [ ] try org-super-agenda
   - https://github.com/alphapapa/org-super-agenda
+- [X] try consult-org-roam
+- [ ] try org-node
+  - https://github.com/meedstrom/org-node
+  - alternative for org-roam, but can work with it (same on-disk format)
+  - better performance?
+- [ ] try org-super-links
+  - https://github.com/toshism/org-super-links
+- [ ] try org-supertag
+  - https://github.com/yibie/org-supertag
+  - can work with org-roam
+  - db-based (uses database that can not simply be generated from the text files)
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
@@ -550,14 +586,16 @@
             ,(expand-file-name "~/Dropbox/org/roam/kamerplanten.org")
             ,(expand-file-name "~/Dropbox/org/roam/zaak/boekhouding.org")
             ,(expand-file-name "~/Dropbox/org/roam/veilingen.org")
-            ,(expand-file-name "~/Dropbox/org/roam/20240902094800-atelier_in_beeld.org")
-            ,(expand-file-name "~/Dropbox/org/pipeline/todo.org")
-            ,(expand-file-name "~/Dropbox/org/sbs/todo.org")
+            ,(expand-file-name "~/Dropbox/org/roam/daisy_pipeline/todo.org")
+            ,(expand-file-name "~/Dropbox/org/roam/sbs/todo.org")
+            ;;,(expand-file-name "~/Dropbox/org/roam/atelier_in_beeld.org")
             )
         org-startup-folded 'content
         org-cycle-include-plain-lists 'integrate
         org-drawers '("PROPERTIES" "LOGBOOK")
         ;; don't use hard indentation
+        ;; FIXME: create function to automatically remove hard indentation
+        ;; => see MacBook?
         org-adapt-indentation nil
         org-src-preserve-indentation t
         org-edit-src-content-indentation 0
@@ -612,7 +650,7 @@
                           (org-agenda-remove-tags t)))
               nil))))
   (defun org-github-issue-link-open-with-forge (orig-fun &rest args)
-    (if current-prefix-arg
+    (if (not current-prefix-arg)
         (apply orig-fun args)
       (let* ((link (car args))
              (type (org-element-property :type link))
@@ -642,6 +680,10 @@
 ;(use-package emacsql-sqlite-builtin
 ;  :ensure t)
 
+#+END_SRC
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
 (use-package org-roam
   :ensure t
   :defer 300 ;; ~ same as (run-with-idle-timer 300 nil #'org-roam-db-autosync-enable)
@@ -650,16 +692,28 @@
              org-roam-buffer-toggle)
   :autoload (org-roam-node-find
              org-roam-node-insert)
-  :bind (("C-c n f" . org-roam-node-find-with-ivy) ;; FIXME: or can use vertico
-                                                   ;; - pretty much the same as ivy
-                                                   ;; - default behavior of org-roam-node-find ivertico-mode is enabled by default
-         ("C-c n i" . org-roam-node-insert-with-ivy)
+  :bind (("C-c n f" . org-roam-node-find-with-vertico) ;; FIXME: replace by consult-org-roam-file-find, see below
+         ("C-c n i" . org-roam-node-insert-with-vertico)
          ("C-c n c" . org-roam-capture)
          ("C-c n l" . org-roam-buffer-toggle))
   :config
+  (require 'org-roam-node)
+  (cl-defmethod org-roam-node-title-with-hierarchy ((node org-roam-node))
+    (let ((title (org-roam-node-title node)))
+      (if (> (org-roam-node-level node) 0)
+        (let* ((file-title (org-roam-node-file-title node))
+               (file-title (if (string= "" file-title) nil (list file-title)))
+               (outline-path (org-roam-node-olp node)))
+          (string-join (append '() file-title outline-path (list title)) " > "))
+        title)))
   (setq org-roam-v2-ack t
+        ;; FIXME: why not use ~/Dropbox/org instead of ~/Dropbox/org/roam?
+        ;; => probably because it takes longer
+        ;; FIXME: why not use my home directory as the base directory for roam?
+        ;; => because it takes even longer
+        ;; => because new notes won't be backed up unless I can somehow say that they need to be put under ~/Dropbox/org
         org-roam-directory "~/Dropbox/org/roam"
-        org-roam-node-display-template "${title:*} ${tags:0} ${refs:0}"
+        org-roam-node-display-template "${title-with-hierarchy:*} ${tags:0} ${refs:0}" ;; include tags in search but don't show them
         org-roam-capture-templates
         '(("d" "default" plain
            "%?"
@@ -672,27 +726,135 @@
   ;(org-id-update-id-locations (directory-files-recursively org-roam-directory ".org$\\|.org.gpg$"))
   (org-roam-db-autosync-enable))
 
-(defun org-roam-node-find-with-ivy ()
+;; note that this is the default behavior of org-roam-node-find if vertico-mode is
+; enabled, however vertico-mode is not enabled by default because it has issues (see below)
+(defun org-roam-node-find-with-vertico ()
   (interactive)
-  (unwind-protect
-      (progn
-        (ivy-mode +1)
-        (org-roam-node-find))
-    (ivy-mode -1)))
-(defun org-roam-node-insert-with-ivy ()
+  (if vertico-mode
+      (org-roam-node-find)
+    (unwind-protect
+        (progn
+          (vertico-mode +1)
+          (org-roam-node-find))
+      (vertico-mode -1))))
+(defun org-roam-node-insert-with-vertico ()
   (interactive)
-  (unwind-protect
-      (progn
-        (ivy-mode +1)
-        (org-roam-node-insert))
-    (ivy-mode -1)))
+  (if vertico-mode
+      (org-roam-node-insert)
+    (unwind-protect
+        (progn
+          (vertico-mode +1)
+          (org-roam-node-insert))
+      (vertico-mode -1))))
 
-(global-set-key (kbd "C-c n f") 'org-roam-node-find-with-ivy)
-(global-set-key (kbd "C-c n i") 'org-roam-node-insert-with-ivy)
+(global-set-key (kbd "C-c n f") 'org-roam-node-find-with-vertico)
+(global-set-key (kbd "C-c n i") 'org-roam-node-insert-with-vertico)
 (global-set-key (kbd "C-c n c") 'org-roam-capture)
 (global-set-key (kbd "C-c n l") 'org-roam-buffer-toggle)
 
 #+END_SRC
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package org-roam-ui
+  :ensure t
+  :after org-roam
+  :bind (("C-c n u i" . org-roam-ui-open))
+  :config
+  (setq org-roam-ui-sync-theme t
+        org-roam-ui-follow t
+        org-roam-ui-update-on-save t
+        org-roam-ui-open-on-start t))
+
+#+END_SRC
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package consult-org-roam
+  :ensure t
+  :after org-roam
+  :init
+  (require 'consult-org-roam)
+  (consult-org-roam-mode 1)
+  ;; FIXME: why does this not seem to make use of org-roam-node-title-with-hierarchy?
+  ;; => does it not check org-roam-node-display-template?
+  ;; => but consult-org-roam-ui-follow-node-preview still seems to called even though
+  ;;    consult-org-roam-file-find isn't?
+  :config
+  (defun consult-org-roam-ui-follow-node-preview (orig-fun &rest args)
+    (require 'cl) ;; needed for lexical-let (FIXME: deprecated)
+    (lexical-let ((fun (apply orig-fun args)))
+      (when fun
+        (lambda (action cand)
+          (when (org-roam-node-p cand)
+            (require 'org-roam-ui)
+            (when (websocket-openp org-roam-ui-ws-socket)
+              (let ((node (org-roam-node-id cand)))
+                (unless (string= org-roam-ui--ws-current-node node)
+                  (setq org-roam-ui--ws-current-node node)
+                  (websocket-send-text org-roam-ui-ws-socket
+                                       (json-encode `((type . "command")
+                                                      (data . ((commandName . "follow")
+                                                               (id . ,node)))))))))
+              (funcall fun action cand))))))
+  (advice-add 'consult-org-roam--node-preview :around #'consult-org-roam-ui-follow-node-preview))
+
+#+END_SRC
+
+Function to automatically make nodes of headings that are being linked to:
+
+#+BEGIN_SRC emacs-lisp
+(defun org-convert-next-link-to-id-link ()
+  (interactive)
+  (let ((next-link)
+        (org-link--search-failed nil)
+        (org-roam-directory (concat (expand-file-name org-roam-directory) "/")))
+    (while (and (not next-link)
+                (not org-link--search-failed))
+      (org-next-link)
+      (let* ((link (org-element-context))
+             (raw-link (org-element-property :raw-link link))
+             (type (org-element-property :type link))
+             (file (org-element-property :path link)))
+        (when (or (s-starts-with? "*" raw-link) ;; (require 's)
+                  (and (string= type "file")
+                       (s-ends-with? ".org" file)
+                       (or
+                        ;; broken link is reported below
+                        (not (file-exists-p file))
+                        ;; ignore org files that are not inside org-roam-directory
+                        (s-starts-with? org-roam-directory (expand-file-name file)))))
+          (setq next-link link))))
+    (when next-link
+      (when-let ((id (if (and (string= (org-element-property :type next-link) "file")
+                              (not (file-exists-p (org-element-property :path next-link))))
+                         (progn (message "Broken link") nil)
+                       (save-window-excursion
+                         (save-excursion
+                           (let ((org-link-search-must-match-exact-headline t))
+                             (condition-case nil
+                                 (progn (org-open-at-point)
+                                        (org-id-get-create))
+                               (error (progn (message "Broken link") nil)))))))))
+        (insert "[[id:")
+        (insert id)
+        (insert "]")
+        (delete-forward-char 1)
+        (when (org-element-property :contents-begin next-link)
+          (zap-to-char 1 ?\]))
+        (message "id:%s" id)))))
+
+(global-set-key (kbd "C-x l") 'org-convert-next-link-to-id-link)
+
+#+END_SRC
+
+- [ ] Function to replace a node with another one (let all nodes that point to it, point to the other node)
+- [ ] Function to remove hard indentation
+- [ ] Function to extract a node into a separate file (but without clock entries, agenda items, deadlines)
+- [ ] Function to capture a Github issue as a note
+- [ ] Replace all "gh:" links with real links to Github
+  - but first make sure that I can still do what I used to be able to with the gh: links (see MacBook)
+- [ ] Function to replace a Github link that corresponds with a note to a link to that note
 
 ** Selection, completion, navigation
 
@@ -731,12 +893,16 @@
 
 *** Vertico
 
+- [ ] don't use vertico-mode for rgrep
+  - or configure it so that you don't have to choose one of the options
+- [ ] don't use vertico-mode for save to file
+
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
 (use-package vertico
   :ensure t
   :init
-  (vertico-mode)
+  ;;(vertico-mode)
 
   ;; Different scroll margin
   ;; (setq vertico-scroll-margin 0)
@@ -791,7 +957,7 @@
 *** Consult
 
 - [ ] is it possible to have sections, like with helm? answer is yes
-- [ ] show column with title for force topics
+- [ ] show column with title for forge topics
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
@@ -1048,6 +1214,8 @@ save it in `ffap-file-at-point-line-number' variable."
 #+END_SRC
 
 ** Email
+
+- [ ] try consult-mu
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
@@ -1537,7 +1705,7 @@ save it in `ffap-file-at-point-line-number' variable."
     (let ((mu4e-search-include-related t))
       (mu4e-search (format "msgid:%s" (mu4e-message-field-at-point :message-id)))))
   (defun mu4e-open-github-issue-link-with-forge (orig-fun &rest args)
-    (if current-prefix-arg
+    (if (not urrent-prefix-arg)
         (apply orig-fun args)
       (when-let ((url (or (car args) (mu4e--view-get-property-from-event 'mu4e-url))))
         (or (browse-github-issue-url-with-forge url)
