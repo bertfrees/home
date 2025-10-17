@@ -139,6 +139,9 @@
 (add-to-list 'straight-built-in-pseudo-packages 'seq)
 (add-to-list 'straight-built-in-pseudo-packages 'transient)
 (add-to-list 'straight-built-in-pseudo-packages 'yaml)
+(add-to-list 'straight-built-in-pseudo-packages 'org-ql)
+(add-to-list 'straight-built-in-pseudo-packages 's)
+(add-to-list 'straight-built-in-pseudo-packages 'ts)
 
 ;(unless (package-installed-p 'compat) (package-install 'compat))
 ;...
@@ -337,6 +340,10 @@
   :ensure t
   :autoload password-store-get)
 
+#+END_SRC
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
 ;; FIXME: ⛔ Error (use-package): magit/:config: Cannot open load file: No such file or directory, closql
 (use-package magit
   :ensure t
@@ -395,6 +402,10 @@
       (magit-run-git "stash-rename" stash desc)))
   )
 
+#+END_SRC
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
 ;; FIXME: synchronization with Github is not good
 ;; -> https://github.com/magit/forge/issues/367
 ;; -> see forge-notifications-github-kludge
@@ -412,7 +423,7 @@
   ;; -> update when consult-gh is updated?
   ;; => for now disabled because of issues with older version of forge
   ;; FIXME: can not checkout specific version with straight
-  ;; -> checked out desired version after the clone
+  ;; -> check out desired version after the clone
   ;; -> then do a M-x straight-freeze-versions
   ;;    - this will create the lockfile ~/.emacs.d/straight/versions/default.el
   :straight (forge :type git :host github :repo "magit/forge")
@@ -457,9 +468,18 @@
     (advice-add 'markdown--browse-url :around #'markdown-browse-github-issue-url-with-forge)
     ))
 
+#+END_SRC
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
 (use-package orgit :ensure t)
 ;(use-package orgit-forge :ensure t) ;; FIXME: error: Required package ‘forge-0.3’ is unavailable
 
+#+END_SRC
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+;; FIXME: this seems broken: "funcall: Symbol’s function definition is void: closure"
 ;; FIXME: transient menu (M-x consult-gh) seems slow
 ;; FIXME: source code modified because not compatible with latest forge
 ;; -> wait until consult-gh is fixed upstream?
@@ -471,55 +491,55 @@
 ;;    - works, but warning message "Obsolete value for ‘forge-get-repository’s DEMAND: ‘full’; use ‘:tracked?’ instead"
 ;;    - should commit and push to fork
 ;;    - not sure if this is correct
-(use-package consult-gh
-  :straight (consult-gh :type git :host github :repo "armindarvish/consult-gh" :fork t)
-  :bind (("C-c g h i" . consult-gh-issue-search)
-         ("C-c g h p" . consult-gh-pr-search))
-  :custom
-  (consult-gh-prioritize-local-folder t)
-  ;(consult-gh-show-preview t)
-  ;(consult-gh-preview-key "M-o")
-  ;(consult-gh-repo-action #'consult-gh--repo-browse-files-action)
-  (consult-gh-issue-action #'consult-gh-forge--issue-view-action)
-  (consult-gh-pr-action #'consult-gh-forge--pr-view-action)
-  ;(consult-gh-code-action #'consult-gh--code-view-action)
-  ;(consult-gh-file-action #'consult-gh--files-view-action)
-  ;(consult-gh-large-file-warning-threshold 2500000)
-  :config
-  (require 'consult-gh-transient)
-  (require 'forge)
-  (require 'consult-gh-forge)
-  (add-to-list 'consult-gh-default-orgs-list "bertfrees")
-  (setq consult-gh-default-orgs-list
-          (append consult-gh-default-orgs-list
-                  (remove "" (split-string (or (consult-gh--command-to-string "org" "list") "") "\n")))
-        consult-gh-default-clone-directory "~/src/github/")
-  ;; FIXME: omit last column (repo)
-  (defun consult-gh-issue-search (&optional repo query)
-    (interactive)
-    (let* ((default-repo (or repo (consult-gh--get-repo-from-directory)))
-           (repo (if (and default-repo (not current-prefix-arg))
-                     default-repo
-                   (format "%s" (car (consult-gh-search-repos default-repo t)))))
-           (query (or query (read-from-minibuffer (format "Search in %s issues: " (cadr (split-string repo "/"))))))
-           (query (if (or (= 0 (length query)) (string-match " " query)) (format "\"%s\"" query) query))
-           (query (format "%s -- --search %s" repo query))
-           (sel (consult-gh--async-issue-list "Search: " #'consult-gh--issue-list-builder query))
-           (sel (cons (car sel) (plist-put (cdr sel) :repo repo))))
-      (funcall consult-gh-issue-action sel)))
-  ;; FIXME: single command for issues and pull requests would be better
-  (defun consult-gh-pr-search (&optional repo query)
-    (interactive)
-    (let* ((default-repo (or repo (consult-gh--get-repo-from-directory)))
-           (repo (if (and default-repo (not current-prefix-arg))
-                     default-repo
-                   (format "%s" (car (consult-gh-search-repos default-repo t)))))
-           (query (or query (read-from-minibuffer (format "Search in %s PRs: " (cadr (split-string repo "/"))))))
-           (query (if (or (= 0 (length query)) (string-match " " query)) (format "\"%s\"" query) query))
-           (query (format "%s -- --search %s" repo query))
-           (sel (consult-gh--async-pr-list "Search: " #'consult-gh--pr-list-builder query))
-           (sel (cons (car sel) (plist-put (cdr sel) :repo repo))))
-      (funcall consult-gh-pr-action sel))))
+;(use-package consult-gh
+;  :straight (consult-gh :type git :host github :repo "armindarvish/consult-gh" :fork t)
+;  :bind (("C-c g h i" . consult-gh-issue-search)
+;         ("C-c g h p" . consult-gh-pr-search))
+;  :custom
+;  (consult-gh-prioritize-local-folder t)
+;  ;(consult-gh-show-preview t)
+;  ;(consult-gh-preview-key "M-o")
+;  ;(consult-gh-repo-action #'consult-gh--repo-browse-files-action)
+;  (consult-gh-issue-action #'consult-gh-forge--issue-view-action)
+;  (consult-gh-pr-action #'consult-gh-forge--pr-view-action)
+;  ;(consult-gh-code-action #'consult-gh--code-view-action)
+;  ;(consult-gh-file-action #'consult-gh--files-view-action)
+;  ;(consult-gh-large-file-warning-threshold 2500000)
+;  :config
+;  (require 'consult-gh-transient)
+;  (require 'forge)
+;  (require 'consult-gh-forge)
+;  (add-to-list 'consult-gh-default-orgs-list "bertfrees")
+;  (setq consult-gh-default-orgs-list
+;          (append consult-gh-default-orgs-list
+;                  (remove "" (split-string (or (consult-gh--command-to-string "org" "list") "") "\n")))
+;        consult-gh-default-clone-directory "~/src/github/")
+;  ;; FIXME: omit last column (repo)
+;  (defun consult-gh-issue-search (&optional repo query)
+;    (interactive)
+;    (let* ((default-repo (or repo (consult-gh--get-repo-from-directory)))
+;           (repo (if (and default-repo (not current-prefix-arg))
+;                     default-repo
+;                   (format "%s" (car (consult-gh-search-repos default-repo t)))))
+;           (query (or query (read-from-minibuffer (format "Search in %s issues: " (cadr (split-string repo "/"))))))
+;           (query (if (or (= 0 (length query)) (string-match " " query)) (format "\"%s\"" query) query))
+;           (query (format "%s -- --search %s" repo query))
+;           (sel (consult-gh--async-issue-list "Search: " #'consult-gh--issue-list-builder query))
+;           (sel (cons (car sel) (plist-put (cdr sel) :repo repo))))
+;      (funcall consult-gh-issue-action sel)))
+;  ;; FIXME: single command for issues and pull requests would be better
+;  (defun consult-gh-pr-search (&optional repo query)
+;    (interactive)
+;    (let* ((default-repo (or repo (consult-gh--get-repo-from-directory)))
+;           (repo (if (and default-repo (not current-prefix-arg))
+;                     default-repo
+;                   (format "%s" (car (consult-gh-search-repos default-repo t)))))
+;           (query (or query (read-from-minibuffer (format "Search in %s PRs: " (cadr (split-string repo "/"))))))
+;           (query (if (or (= 0 (length query)) (string-match " " query)) (format "\"%s\"" query) query))
+;           (query (format "%s -- --search %s" repo query))
+;           (sel (consult-gh--async-pr-list "Search: " #'consult-gh--pr-list-builder query))
+;           (sel (cons (car sel) (plist-put (cdr sel) :repo repo))))
+;      (funcall consult-gh-pr-action sel))))
 
 #+END_SRC
 
@@ -605,10 +625,12 @@
             ,(expand-file-name "~/Dropbox/org/roam/betaalagenda.org")
             ,(expand-file-name "~/Dropbox/org/roam/vuilophaling.org")
             ,(expand-file-name "~/Dropbox/org/roam/kamerplanten.org")
-            ,(expand-file-name "~/Dropbox/org/roam/zaak/boekhouding.org")
+            ,(expand-file-name "~/Dropbox/org/roam/ko_lab.org")
             ,(expand-file-name "~/Dropbox/org/roam/veilingen.org")
+            ,(expand-file-name "~/Dropbox/org/roam/zaak/boekhouding.org")
             ,(expand-file-name "~/Dropbox/org/roam/daisy_pipeline/todo.org")
             ,(expand-file-name "~/Dropbox/org/roam/sbs/todo.org")
+            ,(expand-file-name "~/Dropbox/org/roam/statped/todo.org")
             ;;,(expand-file-name "~/Dropbox/org/roam/atelier_in_beeld.org")
             ;; ,(expand-file-name "~/Dropbox/org/roam/luister_en_speur_naar_stadse_natuur.org")
             )
@@ -616,8 +638,7 @@
         org-cycle-include-plain-lists 'integrate
         org-drawers '("PROPERTIES" "LOGBOOK")
         ;; don't use hard indentation
-        ;; FIXME: create function to automatically remove hard indentation
-        ;; => see MacBook?
+        ;; (see also `org-remove-indentation-from-current-section' function below)
         org-adapt-indentation nil
         org-src-preserve-indentation t
         org-edit-src-content-indentation 0
@@ -750,18 +771,18 @@ or set the `:backend' header argument"))))
                                     (apply 'buffer-substring
                                            (flatten-tree (org-in-regexp org-ts-regexp3))))
                                    t))))
-   ;; export agendas to ics
-    (defun export-agenda-on-save ()
-      (interactive)
-      (when (and (eq major-mode 'org-mode)
-                 (string= (buffer-file-name) "/Users/bert/Dropbox/org/roam/agenda_hoveniersstraat_14.org"))
-        (let ((outfile "/Users/bert/Dropbox/public/agenda_hoveniersstraat_14.ics"))
-          (org-export-to-file 'icalendar outfile
-            nil nil nil nil
-            '(:ascii-charset utf-8 :ascii-links-to-notes nil)
-            (lambda (file)
-              (run-hook-with-args 'org-icalendar-after-save-hook file) nil)))))
-    (add-hook 'after-save-hook 'export-agenda-on-save)
+  ;; export agendas to ics
+  (defun export-agenda-on-save ()
+    (interactive)
+    (when (and (eq major-mode 'org-mode)
+               (string= (buffer-file-name) "/Users/bert/Dropbox/org/roam/agenda_hoveniersstraat_14.org"))
+      (let ((outfile "/Users/bert/Dropbox/public/agenda_hoveniersstraat_14.ics"))
+        (org-export-to-file 'icalendar outfile
+          nil nil nil nil
+          '(:ascii-charset utf-8 :ascii-links-to-notes nil)
+          (lambda (file)
+            (run-hook-with-args 'org-icalendar-after-save-hook file) nil)))))
+  (add-hook 'after-save-hook 'export-agenda-on-save)
 
   (use-package org-indent
     :config
@@ -811,7 +832,7 @@ or set the `:backend' header argument"))))
              org-roam-buffer-toggle)
   :autoload (org-roam-node-find
              org-roam-node-insert)
-  :bind (("C-c n f" . org-roam-node-find-with-vertico) ;; FIXME: replace by consult-org-roam-file-find, see below
+  :bind (("C-c n f" . org-roam-node-find-with-vertico)
          ("C-c n i" . org-roam-node-insert-with-vertico)
          ("C-c n c" . org-roam-capture)
          ("C-c n l" . org-roam-buffer-toggle))
@@ -844,7 +865,13 @@ or set the `:backend' header argument"))))
   ;; => sometimes causes error, after which i need to do a M-x org-roam-db-sync
   ;; => there is also a org-roam-update-org-id-locations function
   ;(org-id-update-id-locations (directory-files-recursively org-roam-directory ".org$\\|.org.gpg$"))
-  (org-roam-db-autosync-enable))
+  (org-roam-db-autosync-enable)
+  ;; FIXME: *org-roam* buffer is not automatically updated when it is in another frame
+  ;(add-to-list 'display-buffer-alist
+  ;             '("\\*org-roam\\*"
+  ;               display-buffer-pop-up-frame))
+  (define-key org-roam-mode-map [mouse-1] #'org-roam-buffer-visit-thing)
+  )
 
 ;; note that this is the default behavior of org-roam-node-find if vertico-mode is
 ; enabled, however vertico-mode is not enabled by default because it has issues (see below)
@@ -876,6 +903,19 @@ or set the `:backend' header argument"))))
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
+(use-package org-roam-ql
+  :ensure t
+  :after org-roam
+  :bind ((:map org-roam-mode-map
+         ("v" . org-roam-ql-buffer-dispatch)
+         ;:map minibuffer-mode-map
+         ;("C-c n i" . org-roam-ql-insert-node-title)
+         )))
+
+#+END_SRC
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
 (use-package org-roam-ui
   :ensure t
   :after org-roam
@@ -884,12 +924,15 @@ or set the `:backend' header argument"))))
   (setq org-roam-ui-sync-theme t
         org-roam-ui-follow t
         org-roam-ui-update-on-save t
-        org-roam-ui-open-on-start t))
+        ;; if `org-roam-ui-open-on-start' is set to t, org-roam-ui-open will open two tabs,
+        ;; and when one tab is closed, org-roam-ui-follow-mode is automatically disabled
+        org-roam-ui-open-on-start nil))
 
 #+END_SRC
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
+;; FIXME: preview is very annoying for org-roam-node-insert (only when linking to same file)
 (use-package consult-org-roam
   :ensure t
   :after org-roam
@@ -921,8 +964,21 @@ or set the `:backend' header argument"))))
 
 #+END_SRC
 
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+;; required external tools: gh, jq
+(use-package om-dash
+  :straight (om-dash :type git
+                     :host github
+                     :repo "gavv/om-dash"
+                     :branch "main"
+                     :files ("om-dash.el")))
+
+#+END_SRC
+
 Function to automatically make nodes of headings that are being linked to:
 
+#+NAME: config
 #+BEGIN_SRC emacs-lisp
 (defun org-convert-next-link-to-id-link ()
   (interactive)
@@ -963,13 +1019,13 @@ Function to automatically make nodes of headings that are being linked to:
         (when (org-element-property :contents-begin next-link)
           (zap-to-char 1 ?\]))
         (message "id:%s" id)))))
-
 (global-set-key (kbd "C-x l") 'org-convert-next-link-to-id-link)
 
 #+END_SRC
 
 Function to automatically strip hard indentation:
 
+#+NAME: config
 #+BEGIN_SRC emacs-lisp
 ;; make sure that the the current section heading is visible, as well as the
 ;; next (if this is not the case the script will have no effect)
@@ -1008,7 +1064,6 @@ Function to automatically strip hard indentation:
                                        (org-next-visible-heading 1)
                                        (point))))
           (unindent (point) start-of-next-section))))))
-
 (global-set-key (kbd "C-x <") 'org-remove-indentation-from-current-section)
 
 #+END_SRC
@@ -1017,8 +1072,12 @@ Below is a function to extract a node into a separate file. The contents are rep
 the new file. In case a logbook is present, it is kept in the original section. If desired, the
 original section may be removed manually.
 
+#+NAME: config
 #+BEGIN_SRC emacs-lisp
-
+;; FIXME: does not work when there is no following headline on the same level!
+;; FIXME: abort if any subsections have a logbook or deadline AND are NOT a node
+;; - so that these subsections could first be made into nodes (and possibly extracted)
+;; - alternative is that some subsections will not link to a node
 (defun org-roam-extract-subtree-to-relative-file (orig-fun &rest args)
   (when-let ((id (or (org-id-get)
                      (progn (message "Not a node") nil))))
@@ -1043,6 +1102,7 @@ original section may be removed manually.
                         (insert " ")
                         (when todo
                           (insert (substring-no-properties todo) " "))
+                        ;; FIXME: what if title is already a link?
                         (insert "[[id:" id "][" title "]]\n"))
                       (end-of-line)
                       (forward-char)
@@ -1074,6 +1134,7 @@ original section may be removed manually.
                                             (when-let ((todo (org-element-property :todo-keyword element)))
                                               (insert (substring-no-properties todo) " "))
                                             (when id
+                                              ;; FIXME: what if title is already a link?
                                               (insert "[[id:" id "]["))
                                             (insert (org-element-property :title element))
                                             (when id
@@ -1084,6 +1145,7 @@ original section may be removed manually.
                                         t))
                                      (;; keep everything else only in file
                                       (string= type "property-drawer")
+                                      ;; FIXME: don't assume that ID is the only property!!
                                       (progn
                                         (goto-char (org-element-property :end element))
                                         t))
@@ -1098,7 +1160,12 @@ original section may be removed manually.
         (let ((inhibit-quit t))
           (unless (with-local-quit
                     (let* ((current-dir (file-name-directory (buffer-file-name)))
+                           ;(org-roam-extract-new-file-path "%<%Y%m%d%H%M%S>-${slug}.org")
                            (org-roam-directory current-dir))
+                      ;; FIXME: the (save-buffer) at the beginning and end take a long time
+                      ;; => but only because daisy_pipeline/todo.org is such a huge file: could
+                      ;;    perhaps be worked around by temporarily splitting the file into
+                      ;;    somewhat smaller parts
                       (apply orig-fun args)
                       t))
             (setq quit-flag nil)))
@@ -1110,12 +1177,12 @@ original section may be removed manually.
               (beginning-of-buffer)
               (re-search-forward "#\\+title:")
               (beginning-of-line)
+              ;; FIXME: also insert :ROAM_REFS:
               (insert "#+FILETAGS:\n")
               (backward-char))
           ;; otherwise restore the original content
           (delete-region (point) (org-element-property :end (org-element-at-point)))
           (insert orig-content))))))
-
 (advice-add 'org-roam-extract-subtree :around #'org-roam-extract-subtree-to-relative-file)
 (global-set-key (kbd "C-c n x") 'org-roam-extract-subtree)
 
@@ -1126,8 +1193,9 @@ original section may be removed manually.
 - [ ] Replace all "gh:" links with real links to Github
   - but first make sure that I can still do what I used to be able to with the gh: links (see MacBook)
 - [ ] Function to replace a Github link that corresponds with a note to a link to that note
+- [ ] Function to help eliminate unneeded explicit backlinks (e.g. from actual notes to clock items)
 
-** Selection, completion, navigation
+** Selection, completion, navigation, key binding
 
 - [ ] try embark!
   - https://github.com/oantolin/embark
@@ -1141,6 +1209,8 @@ original section may be removed manually.
   - https://github.com/alphapapa/bufler.el
 
 *** Auto-complete
+
+Auto-completion framework used by nxml-mode and mu4e.
 
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
@@ -1159,6 +1229,44 @@ original section may be removed manually.
         ac-quick-help-delay 1
         ac-use-comphist nil)
   (ac-set-trigger-key "TAB"))
+
+#+END_SRC
+
+*** Company
+
+Auto-completion framework used by lsp-mode.
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package company
+  :ensure t
+  :bind (:map company-active-map
+              ("<tab>" . company-complete-selection))
+  :custom
+  (company-minimum-prefix-length 1)
+  (company-idle-delay 0.0)
+  :config
+  ;; hack to only trigger completion on TAB
+  (setq company-minimum-prefix-length 100)
+  ;; don't show white space characters in company menu
+  (set-default 'whitespace-mode nil)
+  (set-default 'saved-whitespace-mode nil)
+  (defun company-disable-whitespace-mode (_)
+    (make-local-variable 'saved-whitespace-mode)
+    (if (or whitespace-mode saved-whitespace-mode)
+        (progn (setq saved-whitespace-mode t)
+               ;; disabling whitespace-mode with `(whitespace-mode -1)', or hiding the
+               ;; characters with `(whitespace-display-char-off)', does not work in some
+               ;; modes, therefore use this hack
+               (setq buffer-display-table nil))
+      (setq saved-whitespace-mode nil)))
+  (defun company-restore-whitespace-mode (_)
+    (make-local-variable 'saved-whitespace-mode)
+    (when saved-whitespace-mode
+      (whitespace-mode 1)
+      (setq saved-whitespace-mode nil)))
+  (add-hook 'company-completion-started-hook #'company-disable-whitespace-mode)
+  (add-hook 'company-after-completion-hook #'company-restore-whitespace-mode))
 
 #+END_SRC
 
@@ -1227,7 +1335,6 @@ original section may be removed manually.
 
 *** Consult
 
-- [ ] is it possible to have sections, like with helm? answer is yes
 - [ ] show column with title for forge topics
 
 #+NAME: config
@@ -1236,7 +1343,8 @@ original section may be removed manually.
   :ensure t
   :bind (;; FIXME: special commands to filter buffers
          ;; - C-x c t b: vterm buffers
-         ;; - C-x c o b: org-mode buffers
+         ;; - C-x c o b: org-mode buffers (note that org-roam buffer already have a dedicated section
+         ;;                                thanks to consult-org-roam)
          ;; - ...
          ("C-x c b" . consult-buffer)
          
@@ -1465,6 +1573,73 @@ save it in `ffap-file-at-point-line-number' variable."
 
 #+END_SRC
 
+*** Treemacs
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package treemacs :ensure t)
+
+#+END_SRC
+
+*** Hydra
+
+Tie related commands into a family of short bindings with a common prefix See
+https://github.com/abo-abo/hydra.
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package hydra :ensure t)
+
+#+END_SRC
+
+*** which-key
+
+- [ ] drop if it is included in Emacs (likely in v30)
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package which-key
+  :ensure t
+  :init
+  (which-key-mode)
+  (which-key-setup-side-window-bottom)
+  ;;(which-key-setup-minibuffer)
+  )
+
+#+END_SRC
+
+*** Evil
+
+Vim key bindings
+
+#+NAME: config
+#+BEGIN_SRC emacs-lisp
+(use-package evil
+  :ensure t
+  :config
+  (setq evil-default-state 'emacs)
+  (evil-set-initial-state 'undo-tree-visualizer-mode 'emacs)
+  ;; make it more obvious that we are in evil-mode and whether we are in insert or normal mode
+  (use-package vi-tilde-fringe :ensure t)
+  (setq-default display-line-numbers nil
+                display-line-numbers-widen t
+                display-line-numbers-current-absolute t)
+  (add-hook 'evil-insert-state-entry-hook (lambda ()
+                                            (setq-local display-line-numbers 'visual)
+                                            (vi-tilde-fringe-mode +1)))
+  (add-hook 'evil-normal-state-entry-hook (lambda ()
+                                            (setq-local display-line-numbers t)
+                                            (vi-tilde-fringe-mode +1)))
+  (add-hook 'evil-emacs-state-entry-hook (lambda ()
+                                           (setq-local display-line-numbers nil)
+                                            (vi-tilde-fringe-mode -1)))
+  (custom-set-faces '(line-number-current-line ((t :weight bold
+                                                   :foreground "black"
+                                                   :background "white")))))
+
+(evil-mode 1)
+#+END_SRC
+
 ** Cut & paste
 
 - try [[https://github.com/spudlyo/clipetty][clipetty]] instead?
@@ -1512,10 +1687,13 @@ save it in `ffap-file-at-point-line-number' variable."
           message-kill-buffer-on-exit t
           message-signature nil)))
 
-;; FIXME: don't stop *mu4e-update* process when mu4e is quit
+;; FIXME: don't stop *mu4e-update* process when mu4e is quit?
 (use-package mu4e
-  ;; FIXME: compute path with $(dir $(readlink -f /opt/homebrew/bin/mu)/../share/emacs/site-lisp/mu/mu4e
-  :load-path "/opt/homebrew/Cellar/mu/1.12.4/share/emacs/site-lisp/mu/mu4e"
+  ;; every now and then, the version number needs to be updated
+  ;; -> compute path with $(dir $(readlink -f /opt/homebrew/bin/mu)/../share/emacs/site-lisp/mu/mu4e
+  ;; -> must match mu4e-mu-binary
+  ;;:load-path "/opt/homebrew/Cellar/mu/1.12.4/share/emacs/site-lisp/mu/mu4e"
+  :load-path "/opt/homebrew/Cellar/mu/1.12.9_2/share/emacs/site-lisp/mu/mu4e"
   :commands mu4e
   :bind ((("C-x m u"     . mu4e)
           ("C-x µ"       . mu4e)
@@ -1556,7 +1734,7 @@ save it in `ffap-file-at-point-line-number' variable."
          ("/"            . mu4e-search-narrow-with-auto-complete)
          )
   :config
-  (setq mu4e-mu-binary "/opt/homebrew/Cellar/mu/1.12.4/bin/mu"
+  (setq mu4e-mu-binary "/opt/homebrew/Cellar/mu/1.12.9_2/bin/mu"
         mu4e-get-mail-command "offlineimap"
         mu4e~update-buffer-height 10
         mu4e-hide-index-messages t
@@ -1982,7 +2160,7 @@ save it in `ffap-file-at-point-line-number' variable."
     (let ((mu4e-search-include-related t))
       (mu4e-search (format "msgid:%s" (mu4e-message-field-at-point :message-id)))))
   (defun mu4e-open-github-issue-link-with-forge (orig-fun &rest args)
-    (if (not urrent-prefix-arg)
+    (if (not current-prefix-arg)
         (apply orig-fun args)
       (when-let ((url (or (car args) (mu4e--view-get-property-from-event 'mu4e-url))))
         (or (browse-github-issue-url-with-forge url)
@@ -2119,7 +2297,7 @@ See https://github.com/skeeto/elfeed.
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
 (require 'whitespace)
-(global-whitespace-mode)
+;;(global-whitespace-mode)
 ;; FIXME: this does not seem to work in org-mode source blocks
 (setq whitespace-global-modes '(c-mode java-mode nxml-mode clojure-mode emacs-lisp-mode sh-mode makefile-mode))
 ;; as a workaround, enable whitespace-mode in all programming modes
@@ -2170,6 +2348,9 @@ See https://github.com/skeeto/elfeed.
 
 ** Programming
 
+- [ ] set up yasnippet
+  - ~(use-package yasnippet :config (yas-global-mode))~
+
 #+NAME: config
 #+BEGIN_SRC emacs-lisp
 (smart-tabs-add-language-support c c-mode-hook
@@ -2192,6 +2373,33 @@ See https://github.com/skeeto/elfeed.
 (use-package flycheck
   :ensure t)
 (global-flycheck-mode)
+
+#+END_SRC
+
+#+NAME:config
+#+BEGIN_SRC emacs-lisp
+(use-package lsp-mode
+  :ensure t
+  :commands lsp
+  :hook (lsp-mode . company-mode)
+  :init
+  (setq lsp-keymap-prefix "C-l")
+  :bind (:map lsp-mode-map
+              ("<tab>" . company-indent-or-complete-common))
+  :config
+  (use-package lsp-treemacs
+    :ensure t
+    ;; FIXME: the first time a file is opened, the symbols buffer is opened, but not the file itself
+    ;; FIXME: cursors stays in symbols buffer: should be moved back to file
+    ;; :hook ((lsp-mode . lsp-treemacs-symbols))
+    :config
+    (setq lsp-treemacs-sync-mode t))
+  
+  (use-package lsp-ui
+    :ensure t
+    :config
+    (setq lsp-ui-sideline-show-diagnostics t
+          lsp-ui-sideline-show-code-actions nil)))
 
 #+END_SRC
 
@@ -2373,51 +2581,20 @@ See https://github.com/skeeto/elfeed.
 
 #+END_SRC
 
-- [ ] try projectile (not only for Java projects)
-- [-] try lsp-mode (to replace eclim)
-
-from https://emacs-lsp.github.io/lsp-mode/page/installation/ and
-https://github.com/emacs-lsp/lsp-java:
-
 #+NAME:config
 #+BEGIN_SRC emacs-lisp
-(use-package lsp-mode
-  :ensure t
-  :commands lsp
-  ;;:hook ((lsp-mode . lsp-enable-which-key-integration))
-  ;;:config
-  ;;;; set prefix for lsp-command-keymap (few alternatives - "C-l", "C-c l")
-  ;;(setq lsp-keymap-prefix "C-c l")
-  )
-
 (use-package lsp-java
   :ensure t
   :demand t
-  ;;:config (add-hook 'java-mode-hook 'lsp)
-  )
+  ;; :hook ((java-mode . lsp))
+  :config
+  (setq lsp-java-autobuild-enabled nil))
 
-;;(use-package lsp-ui :commands lsp-ui-mode)
 ;;(use-package helm-lsp :commands helm-lsp-workspace-symbol)
 ;;(use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
-;;(use-package lsp-treemacs :commands lsp-treemacs-errors-list)
-;;(use-package dap-mode)
-;;(use-package dap-java)
-;;(use-package which-key :config (which-key-mode))
-
-;;(use-package projectile)
-;;(use-package flycheck)
-;;(use-package yasnippet :config (yas-global-mode))
-;;(use-package lsp-mode :hook ((lsp-mode . lsp-enable-which-key-integration)))
-;;(use-package hydra)
-;;(use-package company)
-;;(use-package lsp-ui)
-;;(use-package which-key :config (which-key-mode))
-;;(use-package lsp-java :config (add-hook 'java-mode-hook 'lsp))
 ;;(use-package dap-mode :after lsp-mode :config (dap-auto-configure-mode))
 ;;(use-package dap-java :ensure nil)
-;;(use-package helm-lsp)
-;;(use-package helm :config (helm-mode))
-;;(use-package lsp-treemacs)
+;;(use-package projectile)
 
 #+END_SRC
 
